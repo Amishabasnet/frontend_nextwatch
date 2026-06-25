@@ -6,6 +6,7 @@ import LandingPage     from "./pages/Landing";
 import ConsentPage     from "./pages/Consent";
 import PreferencesPage from "./pages/Preferences";
 import MoodPage        from "./pages/Mood";
+import DashboardPage   from "./pages/Dashboard";
 import "./pages/Landing/LandingPage.css";
 
 const Page = ({ title }) => (
@@ -25,9 +26,8 @@ const Page = ({ title }) => (
   </div>
 );
 
-const LoginPage          = () => <Page title="Login" />;
-const RegisterPage       = () => <Page title="Register" />;
-const RecommendationsPage = () => <Page title="Recommendations" />;
+const LoginPage    = () => <Page title="Login" />;
+const RegisterPage = () => <Page title="Register" />;
 
 export default function App() {
   return (
@@ -41,7 +41,8 @@ export default function App() {
         <Route path="/preferences" element={<PreferencesPage />} />
         <Route path="/mood"        element={<MoodPage />} />
 
-        <Route path="/recommendations" element={<RecommendationsPage />} />
+        <Route path="/dashboard"       element={<DashboardPage />} />
+        <Route path="/recommendations" element={<DashboardPage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
