@@ -12,7 +12,7 @@ import {
 }                                      from "../../services/api";
 import MoodBadge, { MOOD_CONFIG }      from "../../components/MoodBadge";
 import GenreBadge                      from "../../components/GenreBadge";
-import MovieSection                    from "../../components/MovieSection";
+import MovieSection                    from "../../components/MovieSelection";
 
 function normalizeMovie(raw) {
   if (!raw) return null;

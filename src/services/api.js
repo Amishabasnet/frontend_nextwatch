@@ -37,5 +37,5 @@ export const getLatestMood = (userId) => api.get(`/moods/${userId}/latest`);
 export const getRecommendations = (userId) => api.get(`/recommendations/${userId}`);
 
 export const getHistory = (userId) => api.get(`/history/${userId}`);
-// eslint-disable-next-line no-undef
-getMovies = () => api.get("/movies");
+
+export const getMovies = () => api.get("/movies");
