@@ -120,30 +120,43 @@ export default function DashboardPage() {
   const [loading, setLoading]         = useState(true);
   const [watchlist, setWatchlist]     = useState(new Set());
 
-  const loadDashboard = useCallback(async () => {
-    if (!user?.id) { setLoading(false); return; }
-    setLoading(true);
-
-    const [recRes, moodRes, prefRes, histRes, movRes] = await Promise.allSettled([
-      getRecommendations(user.id),
-      getLatestMood(user.id),
-      getPreferences(user.id),
-      getHistory(user.id),
-      getMovies(),
-    ]);
-
-    if (recRes.status  === "fulfilled") setRecs(normalizeRecommendations(recRes.value.data));
-    if (moodRes.status === "fulfilled" && moodRes.value.data) setLatestMood(moodRes.value.data);
-    if (prefRes.status === "fulfilled" && prefRes.value.data) setPreferences(prefRes.value.data);
-    if (histRes.status === "fulfilled") setHistory(normalizeHistory(histRes.value.data));
-    if (movRes.status  === "fulfilled") setMovies(normalizeMovieList(movRes.value.data));
-
-    setLoading(false);
-  }, [user?.id]);
-
   useEffect(() => {
-    if (!authLoading) loadDashboard();
-  }, [authLoading, loadDashboard]);
+    let didCancel = false;
+
+    const loadDashboard = async () => {
+      if (!user?.id) {
+        if (!didCancel) setLoading(false);
+        return;
+      }
+      if (!didCancel) setLoading(true);
+
+      const [recRes, moodRes, prefRes, histRes, movRes] = await Promise.allSettled([
+        getRecommendations(user.id),
+        getLatestMood(user.id),
+        getPreferences(user.id),
+        getHistory(user.id),
+        getMovies(),
+      ]);
+
+      if (didCancel) return;
+
+      if (recRes.status === "fulfilled") setRecs(normalizeRecommendations(recRes.value.data));
+      if (moodRes.status === "fulfilled" && moodRes.value.data) setLatestMood(moodRes.value.data);
+      if (prefRes.status === "fulfilled" && prefRes.value.data) setPreferences(prefRes.value.data);
+      if (histRes.status === "fulfilled") setHistory(normalizeHistory(histRes.value.data));
+      if (movRes.status === "fulfilled") setMovies(normalizeMovieList(movRes.value.data));
+
+      if (!didCancel) setLoading(false);
+    };
+
+    if (!authLoading) {
+      Promise.resolve().then(loadDashboard);
+    }
+
+    return () => {
+      didCancel = true;
+    };
+  }, [authLoading, user?.id]);
 
   const handleAddToWatchlist = useCallback((id) => {
     setWatchlist((prev) => {
@@ -159,7 +172,7 @@ export default function DashboardPage() {
     });
   }, []);
 
-  const handleViewDetails = useCallback((_id) => {
+  const handleViewDetails = useCallback(() => {
     toast.info("Movie details coming soon.", { autoClose: 2000 });
     // navigate(`/movies/${id}`);  // uncomment when route is ready
   }, []);
@@ -365,7 +378,7 @@ export default function DashboardPage() {
           />
         </section>
 
-\        {hasRecentSection && (
+        {hasRecentSection && (
           <section className="dash-section" style={{ animationDelay: "275ms" }}>
             <MovieSection
               title="Recently Viewed"
