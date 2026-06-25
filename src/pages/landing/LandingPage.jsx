@@ -16,7 +16,6 @@ import {
   Users,
 } from "lucide-react";
 
-// ── Fake movie poster data (TMDB-style placeholder colours) ──────────────────
 const POSTERS = [
   { title: "Neon Abyss", genre: "Sci-Fi", rating: 8.4, color: "#1a1040" },
   { title: "Crimson Tide", genre: "Thriller", rating: 7.9, color: "#2d0a0a" },
@@ -27,12 +26,12 @@ const POSTERS = [
 ];
 
 const MOODS = [
-  { emoji: "😂", label: "Feel-Good", color: "#fbbf24" },
-  { emoji: "😱", label: "Thrilling", color: "#ef4444" },
-  { emoji: "😢", label: "Emotional", color: "#60a5fa" },
-  { emoji: "🤔", label: "Mind-Bending", color: "#a78bfa" },
-  { emoji: "😴", label: "Relaxing", color: "#34d399" },
-  { emoji: "🔥", label: "Action", color: "#f97316" },
+  { label: "Feel-Good", color: "#fbbf24" },
+  { label: "Thrilling", color: "#ef4444" },
+  { label: "Emotional", color: "#60a5fa" },
+  { label: "Mind-Bending", color: "#a78bfa" },
+  { label: "Relaxing", color: "#34d399" },
+  { label: "Action", color: "#f97316" },
 ];
 
 const HOW_IT_WORKS = [
@@ -74,8 +73,6 @@ const PRIVACY_POINTS = [
   },
 ];
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-
 function PosterCard({ poster, index }) {
   return (
     <div
@@ -96,12 +93,9 @@ function PosterCard({ poster, index }) {
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
-
 export default function LandingPage() {
   return (
     <div className="landing-root">
-      {/* ── NAV ──────────────────────────────────────────────────────────────── */}
       <nav className="landing-nav">
         <div className="nav-logo">
           <Clapperboard size={22} strokeWidth={1.8} className="logo-icon" />
@@ -113,7 +107,6 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
       <section className="hero-section">
         {/* Ambient glow */}
         <div className="hero-glow hero-glow-left" />
@@ -156,7 +149,6 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Poster grid */}
         <div className="poster-grid">
           {POSTERS.map((p, i) => (
             <PosterCard key={p.title} poster={p} index={i} />
@@ -165,7 +157,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ─────────────────────────────────────────────────────── */}
       <section className="section" id="how-it-works">
         <div className="section-inner">
           <p className="section-eyebrow">Simple by design</p>
@@ -189,7 +180,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── MOOD-BASED ───────────────────────────────────────────────────────── */}
       <section className="section section-dark" id="mood">
         <div className="section-inner">
           <p className="section-eyebrow">Emotion-first discovery</p>
@@ -218,7 +208,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── PERSONALIZED ─────────────────────────────────────────────────────── */}
       <section className="section" id="personalized">
         <div className="section-inner personalized-inner">
           <div className="personalized-text">
@@ -279,7 +268,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── PRIVACY ──────────────────────────────────────────────────────────── */}
       <section className="section section-dark" id="privacy">
         <div className="section-inner">
           <p className="section-eyebrow">No surprises</p>
@@ -302,7 +290,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA BANNER ───────────────────────────────────────────────────────── */}
       <section className="cta-banner">
         <div className="cta-glow" />
         <h2 className="cta-heading">Ready to find tonight's film?</h2>
@@ -317,7 +304,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── FOOTER ───────────────────────────────────────────────────────────── */}
       <footer className="landing-footer">
         <div className="footer-logo">
           <Clapperboard size={17} strokeWidth={1.8} className="logo-icon" />
