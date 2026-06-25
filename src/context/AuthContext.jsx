@@ -1,6 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
-
-const AuthContext = createContext(null);
+import { useState, useEffect, useCallback } from "react";
+import { AuthContext } from "./auth-context";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 const TOKEN_KEY = "nextwatch_token";
@@ -14,28 +13,31 @@ export function AuthProvider({ children }) {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  const persistToken = (jwt) => {
+  const persistToken = useCallback((jwt) => {
     if (jwt) {
       localStorage.setItem(TOKEN_KEY, jwt);
     } else {
       localStorage.removeItem(TOKEN_KEY);
     }
     setToken(jwt);
-  };
+  }, []);
 
-  const applyUserSession = (jwt, userData) => {
-    persistToken(jwt);
-    setUser(userData);
-    setRole(userData.role);
-    setIsAuthenticated(true);
-  };
+  const applyUserSession = useCallback(
+    (jwt, userData) => {
+      persistToken(jwt);
+      setUser(userData);
+      setRole(userData.role);
+      setIsAuthenticated(true);
+    },
+    [persistToken]
+  );
 
-  const clearSession = () => {
+  const clearSession = useCallback(() => {
     persistToken(null);
     setUser(null);
     setRole(null);
     setIsAuthenticated(false);
-  };
+  }, [persistToken]);
 
   const authHeaders = useCallback(
     () => ({
@@ -114,7 +116,7 @@ export function AuthProvider({ children }) {
     } finally {
       clearSession();
     }
-  }, [authHeaders]);
+  }, [authHeaders, clearSession]);
 
   /**
    * Fetch the currently authenticated user from the server.
@@ -151,7 +153,7 @@ export function AuthProvider({ children }) {
       setIsLoading(false);
       return { success: false, error: "Network error during session restore." };
     }
-  }, []);
+  }, [applyUserSession, clearSession]);
 
   // ─── Session Hydration on Mount ────────────────────────────────────────────
 
@@ -178,17 +180,4 @@ export function AuthProvider({ children }) {
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-/**
- * Hook to consume the AuthContext.
- * Must be used within an <AuthProvider>.
- */
-// eslint-disable-next-line react-refresh/only-export-components
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within an <AuthProvider>.");
-  }
-  return ctx;
 }

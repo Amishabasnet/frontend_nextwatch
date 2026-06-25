@@ -17,7 +17,7 @@ import {
   AlertCircle,
   FileText,
 } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 import { postConsent, getConsent, putConsent } from "../../services/api";
 import "./ConsentPage.css";
 

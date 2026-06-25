@@ -5,13 +5,13 @@ import {
   Clapperboard, TrendingUp, Clock, Sparkles,
   Star, SmilePlus, ListChecks, LogOut, Loader2,
 } from "lucide-react";
-import { useAuth }                     from "../../context/AuthContext";
 import {
   getLatestMood, getPreferences, getHistory,
   getRecommendations, getMovies,
-}                                      from "../../services/api";
-import MoodBadge, { MOOD_CONFIG }      from "../../components/MoodBadge";
-import GenreBadge                      from "../../components/GenreBadge";
+} from "../../services/api";
+import { useAuth } from "../../hooks/useAuth";
+import MoodBadge, { MOOD_CONFIG } from "../../components/MoodBadge";
+import GenreBadge from "../../components/GenreBadge";
 import MovieSection                    from "../../components/MovieSelection";
 
 function normalizeMovie(raw) {
