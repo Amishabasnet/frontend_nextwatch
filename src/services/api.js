@@ -39,8 +39,9 @@ export const getRecommendations = (userId) => api.get(`/recommendations/${userId
 
 export const getHistory = () => api.get("/history");
 
-export const getMovies     = ()     => api.get("/movies");
-export const getMovieById  = (id)   => api.get(`/movies/${id}`);
+export const getMovies     = ()       => api.get("/movies");
+export const getMovieById  = (id)     => api.get(`/movies/${id}`);
+export const searchMovies  = (params) => api.get("/movies/search", { params });
 
 export const getWatchlist    = ()        => api.get("/watchlist");
 export const postWatchlist   = (payload) => api.post("/watchlist", payload);
