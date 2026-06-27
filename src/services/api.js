@@ -37,7 +37,9 @@ export const getLatestMood = () => api.get("/mood/latest");
 
 export const getRecommendations = (userId) => api.get(`/recommendations/${userId}`);
 
-export const getHistory = () => api.get("/history");
+export const getHistory       = ()       => api.get("/history");
+export const getHistoryByUser = (userId) => api.get(`/history/${userId}`);
+export const deleteHistory    = (userId) => api.delete(`/history/${userId}`);
 
 export const getMovies     = ()       => api.get("/movies");
 export const getMovieById  = (id)     => api.get(`/movies/${id}`);
