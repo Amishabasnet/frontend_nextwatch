@@ -11,7 +11,9 @@ import ConsentPage     from "./pages/consent";
 import PreferencesPage from "./pages/Preferences";
 import MoodPage        from "./pages/mood";
 import DashboardPage   from "./pages/dashboard";
-import RecommendationsPage from "./pages/recommendations";
+import RecommendationsPage  from "./pages/recommendations";
+import MoviesPage          from "./pages/movies";
+import MovieDetailsPage    from "./pages/movieDetails";
 import ProtectedRoute  from "./routes/protectedRoute";
 import "./pages/landing/LandingPage.css";
 
@@ -31,6 +33,8 @@ export default function App() {
           <Route path="/mood"            element={<MoodPage />} />
           <Route path="/dashboard"       element={<DashboardPage />} />
           <Route path="/recommendations" element={<RecommendationsPage />} />
+          <Route path="/movies"          element={<MoviesPage />} />
+          <Route path="/movies/:id"      element={<MovieDetailsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
