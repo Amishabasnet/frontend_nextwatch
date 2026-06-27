@@ -43,9 +43,13 @@ export default function PreferencesPage() {
         const res = await getPreferences(user.id);
         if (canceled) return;
         setFavoriteGenres(res.data.favoriteGenres ?? []);
-        setDislikedGenres(res.data.dislikedGenres ?? []);
-      } catch {
-        if (!canceled) {
+        // Backend's field is "excludedGenres" — UI calls them "disliked".
+        setDislikedGenres(res.data.excludedGenres ?? []);
+      } catch (err) {
+        if (canceled) return;
+        // 404 just means this user hasn't saved preferences yet — that's
+        // expected right after onboarding, not an error.
+        if (err.response?.status !== 404) {
           toast.error("Unable to load preferences. Try again later.");
         }
       } finally {
@@ -94,7 +98,7 @@ export default function PreferencesPage() {
     try {
       await putPreferences(user.id, {
         favoriteGenres,
-        dislikedGenres,
+        excludedGenres: dislikedGenres,
       });
       toast.success("Preferences saved successfully.");
     } catch {

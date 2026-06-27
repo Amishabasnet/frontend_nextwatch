@@ -1,0 +1,5 @@
+/* Register page — minor overrides on top of LoginPage.css */
+
+.auth-card--register {
+  max-width: 440px;
+}

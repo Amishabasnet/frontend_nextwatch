@@ -2,47 +2,36 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-import LandingPage     from "./pages/Landing";
-import ConsentPage     from "./pages/Consent";
+import { AuthProvider } from "./context/AuthContext";
+
+import LandingPage     from "./pages/landing";
+import LoginPage       from "./pages/login";
+import RegisterPage    from "./pages/register";
+import ConsentPage     from "./pages/consent";
 import PreferencesPage from "./pages/Preferences";
-import MoodPage        from "./pages/Mood";
-import DashboardPage   from "./pages/Dashboard";
-import "./pages/Landing/LandingPage.css";
-
-const Page = ({ title }) => (
-  <div
-    style={{
-      padding: 40,
-      color: "#fff",
-      fontFamily: "sans-serif",
-      background: "#0b0b0f",
-      minHeight: "100svh",
-    }}
-  >
-    <h1 style={{ color: "#a78bfa" }}>{title}</h1>
-    <a href="/" style={{ color: "#9292b0", fontSize: 14 }}>
-      ← Back to home
-    </a>
-  </div>
-);
-
-const LoginPage    = () => <Page title="Login" />;
-const RegisterPage = () => <Page title="Register" />;
+import MoodPage        from "./pages/mood";
+import DashboardPage   from "./pages/dashboard";
+import RecommendationsPage from "./pages/recommendations";
+import ProtectedRoute  from "./routes/protectedRoute";
+import "./pages/landing/LandingPage.css";
 
 export default function App() {
   return (
-    <>
+    <AuthProvider>
       <Routes>
-        <Route path="/"           element={<LandingPage />} />
-        <Route path="/login"      element={<LoginPage />} />
-        <Route path="/register"   element={<RegisterPage />} />
+        {/* Public */}
+        <Route path="/"         element={<LandingPage />} />
+        <Route path="/login"    element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-        <Route path="/consent"     element={<ConsentPage />} />
-        <Route path="/preferences" element={<PreferencesPage />} />
-        <Route path="/mood"        element={<MoodPage />} />
-
-        <Route path="/dashboard"       element={<DashboardPage />} />
-        <Route path="/recommendations" element={<DashboardPage />} />
+        {/* Protected — require login */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/consent"         element={<ConsentPage />} />
+          <Route path="/preferences"     element={<PreferencesPage />} />
+          <Route path="/mood"            element={<MoodPage />} />
+          <Route path="/dashboard"       element={<DashboardPage />} />
+          <Route path="/recommendations" element={<RecommendationsPage />} />
+        </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -65,6 +54,6 @@ export default function App() {
           fontSize: "0.875rem",
         }}
       />
-    </>
+    </AuthProvider>
   );
 }

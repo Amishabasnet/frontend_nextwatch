@@ -323,6 +323,19 @@ export default function DashboardPage() {
             onViewDetails={handleViewDetails}
             watchlist={watchlist}
           />
+          <div style={{ textAlign: "right", marginTop: 10 }}>
+            <Link
+              to="/recommendations"
+              style={{
+                fontSize: "0.8rem",
+                fontWeight: 700,
+                color: "#a78bfa",
+                textDecoration: "none",
+              }}
+            >
+              See all recommendations →
+            </Link>
+          </div>
         </section>
 
         {hasMoodSection && (

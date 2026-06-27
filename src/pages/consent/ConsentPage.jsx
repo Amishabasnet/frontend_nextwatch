@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -18,7 +18,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
-import { postConsent, getConsent, putConsent } from "../../services/api";
+import { putConsent } from "../../services/api";
 import "./ConsentPage.css";
 
 const DATA_TYPES = [
@@ -86,76 +86,31 @@ export default function ConsentPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [consentChecked, setConsentChecked] = useState(false);
-  const [pageStatus, setPageStatus] = useState("idle"); // idle | loading | submitting | error
-  const [existingConsent, setExistingConsent] = useState(null); // null | object
-
-  useEffect(() => {
-    if (!user?.id) return;
-
-    let didCancel = false;
-
-    const fetchConsent = async () => {
-      setPageStatus("loading");
-      try {
-        const { data } = await getConsent(user.id);
-        if (didCancel) return;
-
-        setExistingConsent(data);
-        if (data?.consentGiven) setConsentChecked(true);
-      } catch (err) {
-        if (didCancel) return;
-        if (err.response?.status !== 404) {
-          toast.error("Couldn't load your privacy settings. Please try again.");
-        }
-      } finally {
-        if (!didCancel) setPageStatus("idle");
-      }
-    };
-
-    Promise.resolve().then(fetchConsent);
-
-    return () => {
-      didCancel = true;
-    };
-  }, [user?.id]);
+  // ProtectedRoute only renders this once auth has resolved, so user is
+  // already stable here — a lazy initial state is enough, no effect needed.
+  // (The backend has no separate GET for consent; the user object already
+  // carries consentGiven from login/register/profile.)
+  const [consentChecked, setConsentChecked] = useState(() => Boolean(user?.consentGiven));
+  const [pageStatus, setPageStatus] = useState("idle"); // idle | submitting | error
 
   const handleContinue = async () => {
-    if (!consentChecked) return;
+    if (!consentChecked || !user?.id) return;
     setPageStatus("submitting");
 
-    const payload = {
-      userId: user?.id ?? "guest",
-      consentGiven: true,
-      dataTypes: DATA_TYPES.map((d) => d.id),
-      timestamp: new Date().toISOString(),
-    };
-
     try {
-      if (existingConsent) {
-        await putConsent(payload.userId, {
-          consentGiven: payload.consentGiven,
-          dataTypes: payload.dataTypes,
-          timestamp: payload.timestamp,
-        });
-        toast.success("Privacy preferences updated!");
-      } else {
-        // First-time submission
-        await postConsent(payload);
-        toast.success("Thanks for agreeing — let's personalise your experience!");
-      }
-
+      // The backend only has an update (PUT) endpoint for consent — it
+      // doubles as the "first time" submission too.
+      await putConsent(user.id, { consentGiven: true });
+      toast.success("Thanks for agreeing — let's personalise your experience!");
+      setPageStatus("idle");
       setTimeout(() => navigate("/preferences"), 900);
     } catch {
       setPageStatus("error");
       toast.error("Something went wrong. Please try again.");
-    } finally {
-      if (pageStatus !== "error") setPageStatus("idle");
     }
   };
 
   const isSubmitting = pageStatus === "submitting";
-  const isLoading = pageStatus === "loading";
 
   return (
     <div className="consent-root">
@@ -180,10 +135,7 @@ export default function ConsentPage() {
       </nav>
 
       <main className="consent-main">
-        {isLoading ? (
-          <LoadingSkeleton />
-        ) : (
-          <div className="consent-card">
+        <div className="consent-card">
             {/* Header */}
             <div className="consent-header">
               <div className="consent-shield-wrap">
@@ -305,7 +257,6 @@ export default function ConsentPage() {
               </p>
             )}
           </div>
-        )}
       </main>
 
       {/* Footer */}
@@ -320,20 +271,6 @@ export default function ConsentPage() {
         <span className="footer-dot" />
         <span className="footer-copy">© 2025 NextWatch</span>
       </footer>
-    </div>
-  );
-}
-
-function LoadingSkeleton() {
-  return (
-    <div className="consent-card skeleton-card" aria-busy="true" aria-label="Loading privacy settings">
-      <div className="sk sk-icon" />
-      <div className="sk sk-title" />
-      <div className="sk sk-subtitle" />
-      {[1, 2, 3, 4, 5].map((n) => (
-        <div key={n} className="sk sk-row" />
-      ))}
-      <div className="sk sk-btn" />
     </div>
   );
 }

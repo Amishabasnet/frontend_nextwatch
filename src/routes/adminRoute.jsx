@@ -9,20 +9,16 @@ export default function AdminRoute() {
     return <AuthLoadingSpinner />;
   }
 
-  // Not logged in at all — send to login
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Logged in but not an admin — send to the main app
   if (role !== "admin") {
     return <Navigate to="/dashboard" replace />;
   }
 
   return <Outlet />;
 }
-
-// ─── Minimal inline spinner (shared style) ─────────────────────────────────
 
 function AuthLoadingSpinner() {
   return (

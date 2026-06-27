@@ -9,8 +9,9 @@ import {
   Leaf,
   PartyPopper,
   Heart,
-  Brain,
-  Angry,
+  Ghost,
+  Flame,
+  Hourglass,
   SmilePlus,
   CheckCircle2,
   Loader2,
@@ -21,14 +22,15 @@ import { useAuth } from "../../hooks/useAuth";
 import { postMood, getMoods, getLatestMood } from "../../services/api";
 
 const MOODS = [
-  { id: "happy", label: "Happy", icon: Smile, color: "#fbbf24" },
-  { id: "sad", label: "Sad", icon: Frown, color: "#60a5fa" },
-  { id: "relaxed", label: "Relaxed", icon: Leaf, color: "#34d399" },
-  { id: "excited", label: "Excited", icon: PartyPopper, color: "#fb923c" },
-  { id: "bored", label: "Bored", icon: Meh, color: "#94a3b8" },
-  { id: "romantic", label: "Romantic", icon: Heart, color: "#fb7185" },
-  { id: "stressed", label: "Stressed", icon: Brain, color: "#c084fc" },
-  { id: "angry", label: "Angry", icon: Angry, color: "#ef4444" },
+  { id: "Happy", label: "Happy", icon: Smile, color: "#fbbf24" },
+  { id: "Sad", label: "Sad", icon: Frown, color: "#60a5fa" },
+  { id: "Relaxed", label: "Relaxed", icon: Leaf, color: "#34d399" },
+  { id: "Excited", label: "Excited", icon: PartyPopper, color: "#fb923c" },
+  { id: "Bored", label: "Bored", icon: Meh, color: "#94a3b8" },
+  { id: "Romantic", label: "Romantic", icon: Heart, color: "#fb7185" },
+  { id: "Scared", label: "Scared", icon: Ghost, color: "#818cf8" },
+  { id: "Motivated", label: "Motivated", icon: Flame, color: "#f97316" },
+  { id: "Nostalgic", label: "Nostalgic", icon: Hourglass, color: "#c084fc" },
 ];
 
 const MOOD_LOOKUP = MOODS.reduce((acc, m) => {
