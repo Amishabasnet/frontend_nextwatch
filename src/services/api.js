@@ -43,9 +43,10 @@ export const getMovies     = ()       => api.get("/movies");
 export const getMovieById  = (id)     => api.get(`/movies/${id}`);
 export const searchMovies  = (params) => api.get("/movies/search", { params });
 
-export const getWatchlist    = ()        => api.get("/watchlist");
-export const postWatchlist   = (payload) => api.post("/watchlist", payload);
-export const deleteWatchlist = (movieId) => api.delete(`/watchlist/${movieId}`);
+export const getWatchlist       = ()         => api.get("/watchlist");
+export const getWatchlistByUser = (userId)   => api.get(`/watchlist/${userId}`);
+export const postWatchlist      = (payload)  => api.post("/watchlist/add", payload);
+export const deleteWatchlist    = (movieId)  => api.delete(`/watchlist/remove/${movieId}`);
 
 export const postHistory = (payload) => api.post("/history", payload);
 

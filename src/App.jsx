@@ -15,6 +15,7 @@ import RecommendationsPage  from "./pages/recommendations";
 import MoviesPage          from "./pages/movies";
 import MovieDetailsPage    from "./pages/movieDetails";
 import SearchPage          from "./pages/search";
+import WatchlistPage       from "./pages/watchlist";
 import ProtectedRoute  from "./routes/protectedRoute";
 import "./pages/landing/LandingPage.css";
 
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/movies"          element={<MoviesPage />} />
           <Route path="/movies/:id"      element={<MovieDetailsPage />} />
           <Route path="/search"          element={<SearchPage />} />
+          <Route path="/watchlist"       element={<WatchlistPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
