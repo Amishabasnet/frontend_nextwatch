@@ -21,6 +21,12 @@ import {
   Hash,
   LogOut,
   SmilePlus,
+  ThumbsUp,
+  ThumbsDown,
+  Pencil,
+  Trash2,
+  CheckCircle,
+  TriangleAlert,
 } from "lucide-react";
 import {
   getMovieById,
@@ -29,6 +35,10 @@ import {
   deleteWatchlist,
   getWatchlist,
   postRating,
+  getRatingsByMovie,
+  putRating,
+  deleteRating,
+  getRecommendations,
 } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import GenreBadge from "../../components/GenreBadge";
@@ -85,15 +95,19 @@ export default function MovieDetailsPage() {
   const { user, isLoading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [movie, setMovie]           = useState(null);
-  const [status, setStatus]         = useState("loading");
-  const [errorMsg, setErrorMsg]     = useState("");
+  const [movie, setMovie]             = useState(null);
+  const [status, setStatus]           = useState("loading");
+  const [errorMsg, setErrorMsg]       = useState("");
   const [inWatchlist, setInWatchlist] = useState(false);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
-  const [userRating, setUserRating] = useState(null);
-  const [ratingHover, setRatingHover] = useState(null);
-  const [ratingLoading, setRatingLoading] = useState(false);
+
+  // Full rating panel state
+  const [existingRating, setExistingRating]   = useState(null); // rating object from API
+  const [ratingStatus, setRatingStatus]       = useState("idle"); // idle|loading|submitting|deleting
+  const [isEditing, setIsEditing]             = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const historyPosted = useRef(false);
 
   const displayName = user?.username ?? user?.name ?? user?.email?.split("@")[0] ?? "there";
@@ -106,13 +120,31 @@ export default function MovieDetailsPage() {
       const res = await getMovieById(id);
       const m = normalizeMovie(res.data);
       setMovie(m);
-      setUserRating(m?.userRating ?? null);
       setStatus("success");
     } catch (err) {
       setErrorMsg(err.response?.data?.message ?? "Couldn't load movie details.");
       setStatus("error");
     }
   }, [id]);
+
+  const fetchExistingRating = useCallback(async () => {
+    if (!id) return;
+    setRatingStatus("loading");
+    try {
+      const res = await getRatingsByMovie(id);
+      const list = Array.isArray(res.data) ? res.data : (res.data?.ratings ?? []);
+      // Find this user's rating
+      const userId = user?._id ?? user?.id;
+      const mine = list.find(
+        (r) => (r.userId ?? r.user?._id ?? r.user?.id) === userId
+      ) ?? null;
+      setExistingRating(mine);
+    } catch {
+      // non-critical — user just can't see/edit their prior rating
+    } finally {
+      setRatingStatus("idle");
+    }
+  }, [id, user]);
 
   const fetchWatchlistStatus = useCallback(async () => {
     try {
@@ -137,8 +169,9 @@ export default function MovieDetailsPage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchMovie();
       fetchWatchlistStatus();
+      fetchExistingRating();
     }
-  }, [authLoading, fetchMovie, fetchWatchlistStatus]);
+  }, [authLoading, fetchMovie, fetchWatchlistStatus, fetchExistingRating]);
 
   // Trap scroll when trailer modal open
   useEffect(() => {
@@ -176,21 +209,60 @@ export default function MovieDetailsPage() {
     }
   };
 
-  const handleRating = async (rating) => {
-    if (ratingLoading) return;
-    setRatingLoading(true);
-    const prev = userRating;
-    setUserRating(rating);
+  const handleSubmitRating = useCallback(async (formData) => {
+    const { stars, sentiment, feedback } = formData;
+    setRatingStatus("submitting");
     try {
-      await postRating({ movieId: id, rating });
-      toast.success(`You rated this ${rating}/10`);
-    } catch {
-      setUserRating(prev);
-      toast.error("Couldn't save rating");
+      let saved;
+      if (existingRating && !isEditing) {
+        // Shouldn't happen, but guard anyway
+        return;
+      }
+      if (existingRating) {
+        // Update
+        const res = await putRating(existingRating._id ?? existingRating.id, {
+          rating: stars, sentiment, feedback, movieId: id,
+        });
+        saved = res.data?.rating ?? res.data ?? { ...existingRating, rating: stars, sentiment, feedback };
+        toast.success("Rating updated!");
+      } else {
+        // Create
+        const res = await postRating({ movieId: id, rating: stars, sentiment, feedback });
+        saved = res.data?.rating ?? res.data ?? { rating: stars, sentiment, feedback };
+        toast.success("Rating submitted!");
+      }
+      setExistingRating(saved);
+      setIsEditing(false);
+
+      // Record rated action in history
+      postHistory({ movieId: id, action: "rated" }).catch(() => {});
+
+      // Refresh recommendations (non-blocking)
+      const userId = user?._id ?? user?.id;
+      if (userId) getRecommendations(userId).catch(() => {});
+
+    } catch (err) {
+      toast.error(err.response?.data?.message ?? "Couldn't save your rating.");
     } finally {
-      setRatingLoading(false);
+      setRatingStatus("idle");
     }
-  };
+  }, [existingRating, isEditing, id, user]);
+
+  const handleDeleteRating = useCallback(async () => {
+    if (!existingRating) return;
+    setShowDeleteModal(false);
+    setRatingStatus("deleting");
+    try {
+      await deleteRating(existingRating._id ?? existingRating.id);
+      setExistingRating(null);
+      setIsEditing(false);
+      toast("Rating removed", { icon: "🗑️", theme: "dark" });
+    } catch (err) {
+      toast.error(err.response?.data?.message ?? "Couldn't delete your rating.");
+    } finally {
+      setRatingStatus("idle");
+    }
+  }, [existingRating]);
 
   const getYouTubeEmbedUrl = (url) => {
     if (!url) return null;
@@ -258,11 +330,12 @@ export default function MovieDetailsPage() {
             embedUrl={embedUrl}
             trailerOpen={trailerOpen}
             setTrailerOpen={setTrailerOpen}
-            userRating={userRating}
-            ratingHover={ratingHover}
-            setRatingHover={setRatingHover}
-            onRating={handleRating}
-            ratingLoading={ratingLoading}
+            existingRating={existingRating}
+            ratingStatus={ratingStatus}
+            isEditing={isEditing}
+            setIsEditing={setIsEditing}
+            onSubmitRating={handleSubmitRating}
+            onDeleteRating={() => setShowDeleteModal(true)}
           />
         )}
       </main>
@@ -284,6 +357,14 @@ export default function MovieDetailsPage() {
           </div>
         </div>
       )}
+
+      {/* Rating delete confirmation */}
+      {showDeleteModal && (
+        <RatingDeleteModal
+          onConfirm={handleDeleteRating}
+          onCancel={() => setShowDeleteModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -291,7 +372,8 @@ export default function MovieDetailsPage() {
 function MovieContent({
   movie, inWatchlist, watchlistLoading, onWatchlist,
   embedUrl, setTrailerOpen,
-  userRating, ratingHover, setRatingHover, onRating, ratingLoading,
+  existingRating, ratingStatus, isEditing, setIsEditing,
+  onSubmitRating, onDeleteRating,
 }) {
   const [imgError, setImgError] = useState(false);
   const {
@@ -302,8 +384,6 @@ function MovieContent({
   const hasPoster = posterUrl && !imgError;
   const ratingDisplay = rating > 0 ? Number(rating).toFixed(1) : null;
   const durationDisplay = formatDuration(duration);
-
-  const displayRating = ratingHover ?? userRating;
 
   return (
     <div className="md-content">
@@ -471,42 +551,273 @@ function MovieContent({
           </section>
         )}
 
-        {/* Rating section */}
-        <section className="md-section md-rating-section">
+        {/* Full Rating Panel */}
+        <RatingPanel
+          existingRating={existingRating}
+          ratingStatus={ratingStatus}
+          isEditing={isEditing}
+          setIsEditing={setIsEditing}
+          onSubmit={onSubmitRating}
+          onDelete={onDeleteRating}
+        />
+      </div>
+    </div>
+  );
+}
+
+const SENTIMENTS = [
+  { value: "like",    label: "Like",    Icon: ThumbsUp },
+  { value: "dislike", label: "Dislike", Icon: ThumbsDown },
+];
+
+function RatingPanel({ existingRating, ratingStatus, isEditing, setIsEditing, onSubmit, onDelete }) {
+  const hasRating  = !!existingRating;
+  
+  const isBusy     = ratingStatus === "submitting" || ratingStatus === "deleting";
+
+  // Form state (seeded from existingRating when editing)
+  const [stars,     setStars]     = useState(existingRating?.rating ?? 0);
+  const [hovered,   setHovered]   = useState(0);
+  const [sentiment, setSentiment] = useState(existingRating?.sentiment ?? "");
+  const [feedback,  setFeedback]  = useState(existingRating?.feedback ?? "");
+  const [errors,    setErrors]    = useState({});
+
+  // Re-seed when switching to edit mode or when existingRating changes
+  useEffect(() => {
+    if (isEditing || !hasRating) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStars(existingRating?.rating ?? 0);
+      setSentiment(existingRating?.sentiment ?? "");
+      setFeedback(existingRating?.feedback ?? "");
+      setErrors({});
+    }
+  }, [isEditing, existingRating, hasRating]);
+
+  const validate = () => {
+    const e = {};
+    if (!stars || stars < 1 || stars > 5) e.stars = "Please select a rating between 1 and 5.";
+    return e;
+  };
+
+  const handleSubmit = () => {
+    const e = validate();
+    if (Object.keys(e).length) { setErrors(e); return; }
+    setErrors({});
+    onSubmit({ stars, sentiment, feedback });
+  };
+
+  const displayStars = hovered || stars;
+
+  // Read-only view for an existing, non-editing rating
+  if (hasRating && !isEditing) {
+    const { rating: r, sentiment: s, feedback: f } = existingRating;
+    return (
+      <section className="md-section md-rating-section">
+        <div className="md-rp-header">
           <h2 className="md-section-title">
             <Star size={16} strokeWidth={2} />
             Your Rating
           </h2>
-          <p className="md-rating-hint">
-            {userRating ? `You rated this ${userRating}/10` : "Tap a star to rate this movie"}
-          </p>
-          <div
-            className="md-stars"
-            onMouseLeave={() => setRatingHover(null)}
-          >
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-              <button
-                key={n}
-                type="button"
-                className={`md-star-btn ${(displayRating ?? 0) >= n ? "md-star-btn--active" : ""}`}
-                onMouseEnter={() => setRatingHover(n)}
-                onClick={() => onRating(n)}
-                disabled={ratingLoading}
-                aria-label={`Rate ${n} out of 10`}
-              >
-                <Star
-                  size={26}
-                  strokeWidth={1.5}
-                  fill={(displayRating ?? 0) >= n ? "#fbbf24" : "transparent"}
-                />
-              </button>
-            ))}
-            {ratingLoading && <Loader2 size={18} strokeWidth={2} className="md-spin md-rating-spinner" />}
+          <div className="md-rp-header-actions">
+            <button
+              type="button"
+              className="md-rp-edit-btn"
+              onClick={() => setIsEditing(true)}
+              disabled={isBusy}
+            >
+              <Pencil size={13} strokeWidth={2} />
+              Edit
+            </button>
+            <button
+              type="button"
+              className="md-rp-delete-btn"
+              onClick={onDelete}
+              disabled={isBusy}
+            >
+              {ratingStatus === "deleting"
+                ? <Loader2 size={13} className="md-spin" />
+                : <Trash2 size={13} strokeWidth={2} />
+              }
+              Delete
+            </button>
           </div>
-          {displayRating && (
-            <p className="md-rating-value">{displayRating} / 10</p>
+        </div>
+
+        {/* Submitted stars */}
+        <div className="md-rp-submitted-stars">
+          {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
+            <Star
+              key={n}
+              size={28}
+              strokeWidth={1.4}
+              fill={r >= n ? "#fbbf24" : "transparent"}
+              color={r >= n ? "#fbbf24" : "#3b3b52"}
+            />
+          ))}
+          <span className="md-rp-score-label">{r} / 5</span>
+        </div>
+
+        {/* Sentiment */}
+        {s && (
+          <div className={`md-rp-sentiment-display md-rp-sentiment-display--${s}`}>
+            {s === "like"
+              ? <ThumbsUp  size={14} strokeWidth={2} />
+              : <ThumbsDown size={14} strokeWidth={2} />
+            }
+            You {s === "like" ? "liked" : "disliked"} this movie
+          </div>
+        )}
+
+        {/* Feedback */}
+        {f && (
+          <div className="md-rp-feedback-display">
+            <p className="md-rp-feedback-label">Your feedback</p>
+            <p className="md-rp-feedback-text">"{f}"</p>
+          </div>
+        )}
+
+        <div className="md-rp-success-badge">
+          <CheckCircle size={13} strokeWidth={2.5} />
+          Rating submitted
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="md-section md-rating-section">
+      <div className="md-rp-header">
+        <h2 className="md-section-title">
+          <Star size={16} strokeWidth={2} />
+          {isEditing ? "Edit Your Rating" : "Rate This Movie"}
+        </h2>
+        {isEditing && (
+          <button
+            type="button"
+            className="md-rp-cancel-btn"
+            onClick={() => setIsEditing(false)}
+            disabled={isBusy}
+          >
+            <X size={13} strokeWidth={2} />
+            Cancel
+          </button>
+        )}
+      </div>
+
+      {/* Star picker 1–5 */}
+      <div className="md-rp-star-group">
+        <p className="md-rp-field-label">Star Rating <span className="md-rp-required">*</span></p>
+        <div
+          className="md-rp-stars"
+          onMouseLeave={() => setHovered(0)}
+        >
+          {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              type="button"
+              className={`md-rp-star-btn ${displayStars >= n ? "md-rp-star-btn--active" : ""}`}
+              onMouseEnter={() => setHovered(n)}
+              onClick={() => { setStars(n); setErrors((e) => ({ ...e, stars: undefined })); }}
+              disabled={isBusy}
+              aria-label={`${n} star${n !== 1 ? "s" : ""}`}
+            >
+              <Star
+                size={36}
+                strokeWidth={1.3}
+                fill={displayStars >= n ? "#fbbf24" : "transparent"}
+                color={displayStars >= n ? "#fbbf24" : "#3b3b52"}
+              />
+            </button>
+          ))}
+          {stars > 0 && (
+            <span className="md-rp-star-score">{stars} / 5</span>
           )}
-        </section>
+        </div>
+        {errors.stars && <p className="md-rp-error">{errors.stars}</p>}
+      </div>
+
+      {/* Sentiment */}
+      <div className="md-rp-field-group">
+        <p className="md-rp-field-label">Did you like it?</p>
+        <div className="md-rp-sentiment-row">
+          {SENTIMENTS.map(({ value, label, Icon }) => (
+            <button
+              key={value}
+              type="button"
+              className={`md-rp-sentiment-btn md-rp-sentiment-btn--${value} ${sentiment === value ? "md-rp-sentiment-btn--active" : ""}`}
+              onClick={() => setSentiment(sentiment === value ? "" : value)}
+              disabled={isBusy}
+            >
+              <Icon size={15} strokeWidth={2} />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Feedback */}
+      <div className="md-rp-field-group">
+        <label className="md-rp-field-label" htmlFor="md-rp-feedback">
+          Feedback <span className="md-rp-optional">(optional)</span>
+        </label>
+        <textarea
+          id="md-rp-feedback"
+          className="md-rp-textarea"
+          placeholder="What did you think? Any standout moments, performances, or criticisms…"
+          value={feedback}
+          onChange={(e) => setFeedback(e.target.value)}
+          rows={3}
+          maxLength={500}
+          disabled={isBusy}
+        />
+        <p className="md-rp-char-count">{feedback.length} / 500</p>
+      </div>
+
+      {/* Submit */}
+      <button
+        type="button"
+        className="md-rp-submit-btn"
+        onClick={handleSubmit}
+        disabled={isBusy}
+      >
+        {ratingStatus === "submitting"
+          ? <><Loader2 size={15} className="md-spin" /> Saving…</>
+          : isEditing
+            ? <><CheckCircle size={15} strokeWidth={2.5} /> Update Rating</>
+            : <><Star size={15} strokeWidth={2} /> Submit Rating</>
+        }
+      </button>
+    </section>
+  );
+}
+
+function RatingDeleteModal({ onConfirm, onCancel }) {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onCancel(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onCancel]);
+
+  return (
+    <div className="md-modal-backdrop" onClick={onCancel} role="dialog" aria-modal="true">
+      <div className="md-modal" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="md-modal-close" onClick={onCancel}>
+          <X size={15} strokeWidth={2} />
+        </button>
+        <div className="md-modal-icon-wrap">
+          <TriangleAlert size={24} strokeWidth={1.8} />
+        </div>
+        <h2 className="md-modal-title">Delete your rating?</h2>
+        <p className="md-modal-body">
+          Your star rating, sentiment, and feedback will be permanently removed.
+        </p>
+        <div className="md-modal-actions">
+          <button type="button" className="md-modal-cancel" onClick={onCancel}>Keep It</button>
+          <button type="button" className="md-modal-confirm" onClick={onConfirm}>
+            <Trash2 size={13} strokeWidth={2} />
+            Yes, Delete
+          </button>
+        </div>
       </div>
     </div>
   );
