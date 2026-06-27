@@ -22,6 +22,7 @@ api.interceptors.response.use((response) => {
 
 export default api;
 
+export const getConsent = (userId) => api.get(`/consent/${userId}`);
 export const putConsent = (userId, payload) =>
   api.put(`/consent/${userId}`, payload);
 
@@ -52,9 +53,10 @@ export const deleteWatchlist    = (movieId)  => api.delete(`/watchlist/remove/${
 
 export const postHistory = (payload) => api.post("/history", payload);
 
-
 export const postRating        = (payload)       => api.post("/ratings", payload);
 export const getRatingsByMovie = (movieId)       => api.get(`/ratings/${movieId}`);
 export const getRatingsByUser  = (userId)        => api.get(`/ratings/user/${userId}`);
 export const putRating         = (id, payload)   => api.put(`/ratings/${id}`, payload);
 export const deleteRating      = (id)            => api.delete(`/ratings/${id}`);
+
+export const deleteUser = (userId) => api.delete(`/users/${userId}`);
