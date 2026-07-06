@@ -121,7 +121,7 @@ export default function MoodPage() {
 
     setPageStatus("submitting");
     try {
-      await postMood({ mood: selectedMood, timestamp: new Date().toISOString() });
+      await postMood({ mood: selectedMood, timestamp: new Date().toISOString(), userId: user?.id });
       toast.success("Mood logged! Finding recommendations for you…");
       setPageStatus("idle");
       // Short pause so the toast is visible before navigation

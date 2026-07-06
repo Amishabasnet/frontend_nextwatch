@@ -42,7 +42,7 @@ import {
 } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import GenreBadge from "../../components/GenreBadge";
-import "./MovieDetailsPage.css";
+import "./MovieDetailPage.css";
 
 function titleToGradient(title = "") {
   let hash = 0;

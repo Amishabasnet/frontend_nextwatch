@@ -2,30 +2,42 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
-  Clapperboard,
-  Sparkles,
-  RefreshCw,
-  Star,
-  Bookmark,
-  BookmarkCheck,
-  Eye,
-  HelpCircle,
-  X,
-  AlertCircle,
-  Compass,
-  Loader2,
-  SmilePlus,
-  LogOut,
-  TrendingUp,
+  Clapperboard, Sparkles, RefreshCw, Star, Bookmark, BookmarkCheck,
+  Eye, HelpCircle, X, AlertCircle, Compass, Loader2, SmilePlus,
+  LogOut, TrendingUp,
 } from "lucide-react";
-import { getRecommendations } from "../../services/api";
+import { getRecommendations, postWatchlist, deleteWatchlist, getWatchlist, searchMovies } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
-import "./RecommendationsPage.css";
+import "./RecommendationPage.css";
 
-function normalizeRecommendation(raw) {
+const MOODS = [
+  { label: "Happy",     emoji: "😄" },
+  { label: "Sad",       emoji: "😢" },
+  { label: "Excited",   emoji: "🤩" },
+  { label: "Relaxed",   emoji: "😌" },
+  { label: "Scared",    emoji: "😱" },
+  { label: "Romantic",  emoji: "❤️"  },
+  { label: "Motivated", emoji: "💪" },
+  { label: "Bored",     emoji: "😑" },
+  { label: "Nostalgic", emoji: "🕰️" },
+];
+
+const MOOD_GENRE_MAP = {
+  Happy:     ["Comedy", "Animation", "Adventure"],
+  Sad:       ["Drama", "Romance"],
+  Excited:   ["Action", "Thriller", "Adventure"],
+  Relaxed:   ["Documentary", "Animation", "Comedy"],
+  Scared:    ["Horror", "Mystery", "Thriller"],
+  Romantic:  ["Romance", "Drama"],
+  Motivated: ["Action", "Adventure", "Sci-Fi"],
+  Bored:     ["Comedy", "Action", "Fantasy"],
+  Nostalgic: ["Drama", "Romance", "Western"],
+};
+
+function normalizeMovie(raw) {
   if (!raw) return null;
   return {
-    id: raw.movieId ?? raw.movie_id ?? raw.id ?? String(Math.random()),
+    id: raw._id ?? raw.movieId ?? raw.id ?? String(Math.random()),
     title: raw.title ?? "Untitled",
     posterUrl: raw.posterUrl ?? raw.poster_url ?? null,
     genres: Array.isArray(raw.genres) ? raw.genres.filter(Boolean) : [],
@@ -33,9 +45,7 @@ function normalizeRecommendation(raw) {
     releaseYear: raw.releaseYear ?? raw.release_year ?? null,
     contentType: raw.contentType ?? raw.content_type ?? "movie",
     score: typeof raw.score === "number" ? raw.score : null,
-    reason:
-      raw.reason ??
-      "Recommended based on trending content and your profile.",
+    reason: raw.reason ?? "Recommended based on your mood.",
   };
 }
 
@@ -43,7 +53,7 @@ function normalizeRecommendationsResponse(data) {
   if (!data) return { items: [], source: null };
   const list = Array.isArray(data) ? data : data.recommendations ?? [];
   return {
-    items: list.map(normalizeRecommendation).filter(Boolean),
+    items: list.map(normalizeMovie).filter(Boolean),
     source: data.source ?? null,
   };
 }
@@ -53,8 +63,6 @@ function formatScorePercent(score) {
   return Math.round(Math.max(0, Math.min(1, score)) * 100);
 }
 
-// Deterministic gradient fallback for missing posters — mirrors MovieCard's
-// approach so a missing image still looks intentional, not broken.
 function titleToGradient(title = "") {
   let hash = 0;
   for (let i = 0; i < title.length; i++) {
@@ -68,12 +76,7 @@ function titleToGradient(title = "") {
 
 function getInitials(name = "") {
   return (
-    name
-      .split(" ")
-      .map((w) => w[0] ?? "")
-      .join("")
-      .toUpperCase()
-      .slice(0, 2) || "?"
+    name.split(" ").map((w) => w[0] ?? "").join("").toUpperCase().slice(0, 2) || "?"
   );
 }
 
@@ -81,12 +84,57 @@ export default function RecommendationsPage() {
   const { user, isLoading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [status, setStatus] = useState("loading"); // loading | success | error
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [items, setItems] = useState([]);
   const [source, setSource] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [watchlist, setWatchlist] = useState(new Set());
   const [activeMovie, setActiveMovie] = useState(null);
+
+  const fetchByMood = useCallback(async (mood) => {
+    setStatus("loading");
+    setErrorMessage("");
+    try {
+      const genres = MOOD_GENRE_MAP[mood] || [];
+
+      // Try mood-based endpoint first via searchMovies
+      let movies = [];
+      try {
+        const res = await searchMovies({ mood });
+        const d = res.data;
+        movies = Array.isArray(d) ? d : Array.isArray(d?.movies) ? d.movies : [];
+      } catch {
+        /* ignore failures from mood search */
+      }
+
+      // If no mood-tagged movies, fallback to genre-based search via searchMovies
+      if (movies.length === 0 && genres.length > 0) {
+        // Try each preferred genre and merge results
+        const results = await Promise.all(
+          genres.map(genre => searchMovies({ genre }).then(r => {
+            const d = r.data;
+            return Array.isArray(d) ? d : Array.isArray(d?.movies) ? d.movies : [];
+          }).catch(() => []))
+        );
+        // Flatten and deduplicate by _id
+        const seen = new Set();
+        movies = results.flat().filter(m => {
+          const id = String(m._id ?? m.id ?? '');
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+      }
+
+      setItems(movies.map(normalizeMovie).filter(Boolean));
+      setSource("mood");
+      setStatus("success");
+    } catch {
+      setErrorMessage("Couldn't load movies for this mood. Please try again.");
+      setStatus("error");
+    }
+  }, []);
 
   const fetchRecommendations = useCallback(async () => {
     if (!user?.id) return;
@@ -107,40 +155,74 @@ export default function RecommendationsPage() {
     }
   }, [user]);
 
+  // Load personalised recs on mount
   useEffect(() => {
-    if (!authLoading) Promise.resolve().then(fetchRecommendations);
-  }, [authLoading, fetchRecommendations]);
+    if (!authLoading && !selectedMood) {
+      Promise.resolve().then(fetchRecommendations);
+    }
+  }, [authLoading, fetchRecommendations, selectedMood]);
 
-  // Close the "Why Recommended?" modal on Escape
+  // Close modal on Escape
   useEffect(() => {
     if (!activeMovie) return;
-    const onKey = (e) => {
-      if (e.key === "Escape") setActiveMovie(null);
-    };
+    const onKey = (e) => { if (e.key === "Escape") setActiveMovie(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [activeMovie]);
 
-  const handleAddToWatchlist = useCallback((id, title) => {
+  const handleMoodSelect = (mood) => {
+    if (selectedMood === mood) {
+      // Deselect → back to personalised recs
+      setSelectedMood(null);
+      fetchRecommendations();
+    } else {
+      setSelectedMood(mood);
+      fetchByMood(mood);
+    }
+  };
+
+  // Load watchlist from backend on mount
+  useEffect(() => {
+    const loadWatchlist = async () => {
+      try {
+        const res = await getWatchlist();
+        const items = Array.isArray(res.data) ? res.data : (res.data?.watchlist ?? []);
+        const ids = new Set(items.map(i => i.movieId ?? i._id ?? i.id).filter(Boolean));
+        setWatchlist(ids);
+      } catch { /* non-critical */ }
+    };
+    if (!authLoading) loadWatchlist();
+  }, [authLoading]);
+
+  const handleAddToWatchlist = useCallback(async (id, title) => {
+    const inList = watchlist.has(id);
     setWatchlist((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-        toast("Removed from Watchlist", { icon: "🗑️", theme: "dark" });
-      } else {
-        next.add(id);
-        toast.success(`Added "${title}" to Watchlist`);
-      }
+      if (inList) { next.delete(id); } else { next.add(id); }
       return next;
     });
-  }, []);
+    try {
+      if (inList) {
+        await deleteWatchlist(id);
+        toast("Removed from Watchlist", { icon: "🗑️", theme: "dark" });
+      } else {
+        await postWatchlist({ movieId: id });
+        toast.success(`Added "${title}" to Watchlist`);
+      }
+    } catch {
+      // revert on failure
+      setWatchlist((prev) => {
+        const next = new Set(prev);
+        if (inList) { next.add(id); } else { next.delete(id); }
+        return next;
+      });
+      toast.error("Couldn't update Watchlist");
+    }
+  }, [watchlist]);
 
-  const handleViewDetails = useCallback((id) => {
-    navigate(`/movies/${id}`);
-  }, [navigate]);
+  const handleViewDetails = useCallback((id) => navigate(`/movies/${id}`), [navigate]);
 
-  const displayName =
-    user?.username ?? user?.name ?? user?.email?.split("@")[0] ?? "there";
+  const displayName = user?.username ?? user?.name ?? user?.email?.split("@")[0] ?? "there";
   const isLoading = authLoading || status === "loading";
 
   return (
@@ -152,27 +234,17 @@ export default function RecommendationsPage() {
       <nav className="recs-nav">
         <Link to="/" className="recs-nav-logo">
           <Clapperboard size={20} strokeWidth={1.8} className="recs-logo-icon" />
-          <span className="recs-logo-text">
-            Next<span className="recs-logo-accent">Watch</span>
-          </span>
+          <span className="recs-logo-text">Next<span className="recs-logo-accent">Watch</span></span>
         </Link>
-
         <div className="recs-nav-right">
-          <Link to="/dashboard" className="recs-nav-link recs-nav-link--ghost">
-            Dashboard
-          </Link>
+          <Link to="/dashboard" className="recs-nav-link recs-nav-link--ghost">Dashboard</Link>
           <Link to="/mood" className="recs-nav-link">
-            <SmilePlus size={13} strokeWidth={2} />
-            Update Mood
+            <SmilePlus size={13} strokeWidth={2} /> Update Mood
           </Link>
-
           <div className="recs-nav-user">
-            <div className="recs-avatar" title={displayName}>
-              {getInitials(displayName)}
-            </div>
+            <div className="recs-avatar" title={displayName}>{getInitials(displayName)}</div>
             <span className="recs-nav-username">{displayName}</span>
           </div>
-
           <button type="button" onClick={logout} className="recs-nav-signout">
             <LogOut size={13} strokeWidth={2} />
             <span className="recs-nav-signout-label">Sign out</span>
@@ -184,58 +256,68 @@ export default function RecommendationsPage() {
         {/* Page header */}
         <div className="recs-page-header">
           <div>
-            <p className="recs-eyebrow">
-              <Sparkles size={13} strokeWidth={2} />
-              Tailored picks
-            </p>
+            <p className="recs-eyebrow"><Sparkles size={13} strokeWidth={2} /> Tailored picks</p>
             <h1 className="recs-title">Recommended For You</h1>
             <p className="recs-subtitle">
-              Built from your mood, favorite genres, viewing history, and
-              ratings.
+              {selectedMood
+                ? `Showing movies for your "${selectedMood}" mood. Click the mood again to reset.`
+                : "Built from your mood, favorite genres, viewing history, and ratings."}
             </p>
           </div>
-
           <button
             type="button"
-            onClick={fetchRecommendations}
+            onClick={() => selectedMood ? fetchByMood(selectedMood) : fetchRecommendations()}
             disabled={isLoading}
             className="recs-refresh-btn"
           >
-            {isLoading ? (
-              <Loader2 size={15} strokeWidth={2} className="recs-spin" />
-            ) : (
-              <RefreshCw size={15} strokeWidth={2} />
-            )}
+            {isLoading
+              ? <Loader2 size={15} strokeWidth={2} className="recs-spin" />
+              : <RefreshCw size={15} strokeWidth={2} />}
             Refresh Recommendations
           </button>
+        </div>
+
+        {/* Mood selector */}
+        <div className="recs-mood-section">
+          <p className="recs-mood-label">How are you feeling?</p>
+          <div className="recs-mood-row">
+            {MOODS.map(({ label, emoji }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => handleMoodSelect(label)}
+                className={`recs-mood-chip ${selectedMood === label ? "recs-mood-chip--active" : ""}`}
+              >
+                <span className="recs-mood-emoji">{emoji}</span>
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {source === "fallback" && status === "success" && items.length > 0 && (
           <div className="recs-fallback-banner">
             <TrendingUp size={14} strokeWidth={2} />
-            Showing trending picks while we learn your taste — log a mood or
-            rate a few movies to personalize these further.
+            Showing trending picks while we learn your taste — log a mood or rate a few movies to personalize these further.
           </div>
         )}
 
         {/* Content */}
         {isLoading && (
           <div className="recs-grid">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <RecommendationSkeletonCard key={i} />
-            ))}
+            {Array.from({ length: 8 }).map((_, i) => <RecommendationSkeletonCard key={i} />)}
           </div>
         )}
 
         {!isLoading && status === "error" && (
-          <ErrorState message={errorMessage} onRetry={fetchRecommendations} />
+          <ErrorState message={errorMessage} onRetry={() => selectedMood ? fetchByMood(selectedMood) : fetchRecommendations()} />
         )}
 
         {!isLoading && status === "success" && items.length === 0 && (
-          <EmptyState />
+          <EmptyState selectedMood={selectedMood} />
         )}
 
-        {!isLoading && status === "success" && items.length > 0 && (
+        {!isLoading && (status === "success" || status === "idle") && items.length > 0 && (
           <div className="recs-grid">
             {items.map((movie) => (
               <RecommendationCard
@@ -252,34 +334,15 @@ export default function RecommendationsPage() {
       </main>
 
       {activeMovie && (
-        <WhyRecommendedModal
-          movie={activeMovie}
-          onClose={() => setActiveMovie(null)}
-        />
+        <WhyRecommendedModal movie={activeMovie} onClose={() => setActiveMovie(null)} />
       )}
     </div>
   );
 }
 
-function RecommendationCard({
-  movie,
-  isInWatchlist,
-  onAddToWatchlist,
-  onViewDetails,
-  onWhyRecommended,
-}) {
+function RecommendationCard({ movie, isInWatchlist, onAddToWatchlist, onViewDetails, onWhyRecommended }) {
   const [imgError, setImgError] = useState(false);
-  const {
-    id,
-    title,
-    posterUrl,
-    genres,
-    rating,
-    releaseYear,
-    score,
-    reason,
-  } = movie;
-
+  const { id, title, posterUrl, genres, rating, releaseYear, score, reason } = movie;
   const ratingDisplay = rating > 0 ? rating.toFixed(1) : null;
   const scorePercent = formatScorePercent(score);
   const hasPoster = posterUrl && !imgError;
@@ -289,55 +352,30 @@ function RecommendationCard({
     <article className="recs-card">
       <div className="recs-poster">
         {hasPoster ? (
-          <img
-            src={posterUrl}
-            alt={title}
-            loading="lazy"
-            onError={() => setImgError(true)}
-            className="recs-poster-img"
-          />
+          <img src={posterUrl} alt={title} loading="lazy" onError={() => setImgError(true)} className="recs-poster-img" />
         ) : (
-          <div
-            className="recs-poster-fallback"
-            style={{ background: titleToGradient(title) }}
-          >
+          <div className="recs-poster-fallback" style={{ background: titleToGradient(title) }}>
             <span>{title.charAt(0).toUpperCase()}</span>
           </div>
         )}
-
         {ratingDisplay && (
           <div className="recs-badge recs-badge--rating">
-            <Star size={9} strokeWidth={0} fill="#fbbf24" />
-            {ratingDisplay}
+            <Star size={9} strokeWidth={0} fill="#fbbf24" />{ratingDisplay}
           </div>
         )}
-
-        {releaseYear && (
-          <div className="recs-badge recs-badge--year">{releaseYear}</div>
-        )}
+        {releaseYear && <div className="recs-badge recs-badge--year">{releaseYear}</div>}
       </div>
 
       <div className="recs-card-body">
         <h3 className="recs-card-title">{title}</h3>
-
         {visibleGenres.length > 0 && (
           <div className="recs-genre-row">
-            {visibleGenres.map((g) => (
-              <span key={g} className="recs-genre-chip">
-                {g}
-              </span>
-            ))}
+            {visibleGenres.map((g) => <span key={g} className="recs-genre-chip">{g}</span>)}
           </div>
         )}
-
         {scorePercent !== null ? (
           <div className="recs-score">
-            <div className="recs-score-bar">
-              <div
-                className="recs-score-fill"
-                style={{ width: `${scorePercent}%` }}
-              />
-            </div>
+            <div className="recs-score-bar"><div className="recs-score-fill" style={{ width: `${scorePercent}%` }} /></div>
             <span className="recs-score-label">{scorePercent}% match</span>
           </div>
         ) : (
@@ -346,38 +384,20 @@ function RecommendationCard({
             <span className="recs-score-label">Trending pick</span>
           </div>
         )}
-
         <p className="recs-reason">{reason}</p>
-        <button
-          type="button"
-          className="recs-why-btn"
-          onClick={() => onWhyRecommended(movie)}
-        >
-          <HelpCircle size={12} strokeWidth={2} />
-          Why recommended?
+        <button type="button" className="recs-why-btn" onClick={() => onWhyRecommended(movie)}>
+          <HelpCircle size={12} strokeWidth={2} /> Why recommended?
         </button>
-
         <div className="recs-card-actions">
-          <button
-            type="button"
-            onClick={() => onViewDetails(id)}
-            className="recs-btn recs-btn--details"
-          >
-            <Eye size={13} strokeWidth={2} />
-            Details
+          <button type="button" onClick={() => onViewDetails(id)} className="recs-btn recs-btn--details">
+            <Eye size={13} strokeWidth={2} /> Details
           </button>
           <button
             type="button"
             onClick={() => onAddToWatchlist(id, title)}
-            className={`recs-btn recs-btn--watchlist ${
-              isInWatchlist ? "is-saved" : ""
-            }`}
+            className={`recs-btn recs-btn--watchlist ${isInWatchlist ? "is-saved" : ""}`}
           >
-            {isInWatchlist ? (
-              <BookmarkCheck size={13} strokeWidth={2.5} />
-            ) : (
-              <Bookmark size={13} strokeWidth={2} />
-            )}
+            {isInWatchlist ? <BookmarkCheck size={13} strokeWidth={2.5} /> : <Bookmark size={13} strokeWidth={2} />}
             {isInWatchlist ? "Saved" : "Watchlist"}
           </button>
         </div>
@@ -388,44 +408,21 @@ function RecommendationCard({
 
 function WhyRecommendedModal({ movie, onClose }) {
   const scorePercent = formatScorePercent(movie.score);
-
   return (
     <div className="recs-modal-backdrop" onClick={onClose}>
-      <div
-        className="recs-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Why ${movie.title} was recommended`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button type="button" className="recs-modal-close" onClick={onClose}>
-          <X size={16} strokeWidth={2} />
-        </button>
-
-        <div className="recs-modal-icon">
-          <HelpCircle size={22} strokeWidth={1.8} />
-        </div>
-
+      <div className="recs-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="recs-modal-close" onClick={onClose}><X size={16} strokeWidth={2} /></button>
+        <div className="recs-modal-icon"><HelpCircle size={22} strokeWidth={1.8} /></div>
         <p className="recs-modal-eyebrow">Why Recommended?</p>
         <h2 className="recs-modal-title">{movie.title}</h2>
-
         {scorePercent !== null && (
           <div className="recs-modal-score">
-            <div className="recs-score-bar">
-              <div
-                className="recs-score-fill"
-                style={{ width: `${scorePercent}%` }}
-              />
-            </div>
+            <div className="recs-score-bar"><div className="recs-score-fill" style={{ width: `${scorePercent}%` }} /></div>
             <span className="recs-score-label">{scorePercent}% match</span>
           </div>
         )}
-
         <p className="recs-modal-reason">{movie.reason}</p>
-
-        <button type="button" className="recs-modal-ok" onClick={onClose}>
-          Got it
-        </button>
+        <button type="button" className="recs-modal-ok" onClick={onClose}>Got it</button>
       </div>
     </div>
   );
@@ -447,24 +444,21 @@ function RecommendationSkeletonCard() {
   );
 }
 
-function EmptyState() {
+function EmptyState({ selectedMood }) {
   return (
     <div className="recs-state-card">
-      <div className="recs-state-icon">
-        <Compass size={26} strokeWidth={1.5} />
-      </div>
-      <h2 className="recs-state-title">No recommendations yet</h2>
+      <div className="recs-state-icon"><Compass size={26} strokeWidth={1.5} /></div>
+      <h2 className="recs-state-title">
+        {selectedMood ? `No movies found for "${selectedMood}" mood` : "No recommendations yet"}
+      </h2>
       <p className="recs-state-body">
-        Log how you're feeling and pick a few favorite genres so we can start
-        personalizing picks for you.
+        {selectedMood
+          ? "No movies are tagged with this mood yet. Try a different mood or add movies via the admin panel."
+          : "Log how you're feeling and pick a few favorite genres so we can start personalizing picks for you."}
       </p>
       <div className="recs-state-actions">
-        <Link to="/mood" className="recs-btn recs-btn--details">
-          Set Your Mood
-        </Link>
-        <Link to="/preferences" className="recs-btn recs-btn--watchlist">
-          Choose Genres
-        </Link>
+        <Link to="/mood" className="recs-btn recs-btn--details">Set Your Mood</Link>
+        <Link to="/preferences" className="recs-btn recs-btn--watchlist">Choose Genres</Link>
       </div>
     </div>
   );
@@ -473,15 +467,13 @@ function EmptyState() {
 function ErrorState({ message, onRetry }) {
   return (
     <div className="recs-state-card recs-state-card--error">
-      <div className="recs-state-icon recs-state-icon--error">
-        <AlertCircle size={26} strokeWidth={1.5} />
-      </div>
+      <div className="recs-state-icon recs-state-icon--error"><AlertCircle size={26} strokeWidth={1.5} /></div>
       <h2 className="recs-state-title">Couldn't load recommendations</h2>
       <p className="recs-state-body">{message}</p>
       <button type="button" onClick={onRetry} className="recs-retry-btn">
-        <RefreshCw size={14} strokeWidth={2} />
-        Try Again
+        <RefreshCw size={14} strokeWidth={2} /> Try Again
       </button>
     </div>
   );
 }
+/* append this to RecommendationPage.css */
