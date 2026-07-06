@@ -671,3 +671,54 @@
   .recs-refresh-btn { width: 100%; justify-content: center; }
   .recs-page-header { flex-direction: column; }
 }
+
+/* === Mood Selector === */
+.recs-mood-section {
+  margin-bottom: 1.75rem;
+}
+
+.recs-mood-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #6b6b8a;
+  margin: 0 0 0.75rem;
+}
+
+.recs-mood-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.recs-mood-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: #13131a;
+  color: #9292b0;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, color 0.18s, transform 0.15s;
+}
+.recs-mood-chip:hover {
+  border-color: rgba(167, 139, 250, 0.4);
+  background: rgba(167, 139, 250, 0.08);
+  color: #eeeef5;
+  transform: translateY(-1px);
+}
+.recs-mood-chip--active {
+  border-color: rgba(167, 139, 250, 0.7);
+  background: rgba(167, 139, 250, 0.18);
+  color: #eeeef5;
+}
+
+.recs-mood-emoji {
+  font-size: 1rem;
+  line-height: 1;
+}

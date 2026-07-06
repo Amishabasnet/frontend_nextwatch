@@ -4,20 +4,23 @@ import "react-toastify/dist/ReactToastify.css";
 
 import { AuthProvider } from "./context/AuthContext";
 
-import LandingPage     from "./pages/landing";
-import LoginPage       from "./pages/login";
-import RegisterPage    from "./pages/register";
-import ConsentPage     from "./pages/consent";
-import PreferencesPage from "./pages/Preferences";
-import MoodPage        from "./pages/mood";
-import DashboardPage   from "./pages/dashboard";
-import RecommendationsPage  from "./pages/recommendations";
+import LandingPage         from "./pages/landing";
+import LoginPage           from "./pages/login";
+import RegisterPage        from "./pages/register";
+import ConsentPage         from "./pages/consent";
+import PreferencesPage     from "./pages/Preferences";
+import MoodPage            from "./pages/mood";
+import DashboardPage       from "./pages/dashboard";
+import RecommendationsPage from "./pages/recommendations";
 import MoviesPage          from "./pages/movies";
 import MovieDetailsPage    from "./pages/movieDetails";
 import SearchPage          from "./pages/search";
 import WatchlistPage       from "./pages/watchlist";
 import HistoryPage         from "./pages/history";
-import ProtectedRoute  from "./routes/protectedRoute";
+import ProfilePage         from "./pages/profile/ProfilePage";
+import SettingsPage        from "./pages/settings/SettingsPage";
+import ProtectedRoute      from "./routes/protectedRoute";
+import NotFoundPage        from "./pages/NotFoundPage";
 import "./pages/landing/LandingPage.css";
 
 export default function App() {
@@ -28,6 +31,8 @@ export default function App() {
         <Route path="/"         element={<LandingPage />} />
         <Route path="/login"    element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/privacy-policy" element={<NotFoundPage title="Privacy Policy" message="This page is coming soon." />} />
+        <Route path="/terms"          element={<NotFoundPage title="Terms of Service" message="This page is coming soon." />} />
 
         {/* Protected — require login */}
         <Route element={<ProtectedRoute />}>
@@ -41,9 +46,11 @@ export default function App() {
           <Route path="/search"          element={<SearchPage />} />
           <Route path="/watchlist"       element={<WatchlistPage />} />
           <Route path="/history"         element={<HistoryPage />} />
+          <Route path="/profile"         element={<ProfilePage />} />
+          <Route path="/settings"        element={<SettingsPage />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
       <ToastContainer
