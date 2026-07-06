@@ -26,12 +26,12 @@ const POSTERS = [
 ];
 
 const MOODS = [
-  { label: "Feel-Good", color: "#fbbf24" },
-  { label: "Thrilling", color: "#ef4444" },
-  { label: "Emotional", color: "#60a5fa" },
-  { label: "Mind-Bending", color: "#a78bfa" },
-  { label: "Relaxing", color: "#34d399" },
-  { label: "Action", color: "#f97316" },
+  { label: "Feel-Good",   emoji: "😄", color: "#fbbf24" },
+  { label: "Thrilling",   emoji: "😱", color: "#ef4444" },
+  { label: "Emotional",   emoji: "😢", color: "#60a5fa" },
+  { label: "Mind-Bending",emoji: "🤯", color: "#a78bfa" },
+  { label: "Relaxing",    emoji: "😌", color: "#34d399" },
+  { label: "Action",      emoji: "💥", color: "#f97316" },
 ];
 
 const HOW_IT_WORKS = [

@@ -171,7 +171,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user && !authLoading) { navigate("/login"); return; }
     if (!user) return;
-    api.get("/auth/me")
+    api.get("/auth/profile")
       .then((r) => setProfile(r.data))
       .catch(() => setErrors((e) => ({ ...e, profile: "Couldn't load profile." })))
       .finally(() => setLoading((l) => ({ ...l, profile: false })));
@@ -179,24 +179,24 @@ export default function ProfilePage() {
 
   // fetch preferences
   useEffect(() => {
-    if (!user) return;
-    getPreferences()
+    if (!userId) return;
+    getPreferences(userId)
       .then((r) => setPrefs(r.data))
       .catch(() => setErrors((e) => ({ ...e, prefs: "Couldn't load preferences." })))
       .finally(() => setLoading((l) => ({ ...l, prefs: false })));
-  }, [user]);
+  }, [userId]);
 
   // fetch moods
   useEffect(() => {
-    if (!user) return;
-    getMoods()
+    if (!userId) return;
+    getMoods(userId)
       .then((r) => {
         const list = Array.isArray(r.data) ? r.data : r.data?.moods ?? [];
         setMoods(list.slice(0, 5));
       })
       .catch(() => setErrors((e) => ({ ...e, moods: "Couldn't load moods." })))
       .finally(() => setLoading((l) => ({ ...l, moods: false })));
-  }, [user]);
+  }, [userId]);
 
   // fetch counts
   useEffect(() => {
@@ -267,8 +267,8 @@ export default function ProfilePage() {
           </span>
         </Link>
         <div className="pf-nav-right">
-          <Link to="/discover" className="pf-nav-link pf-nav-link--ghost">
-            Discover
+          <Link to="/movies" className="pf-nav-link pf-nav-link--ghost">
+            Movies
           </Link>
           <div className="pf-nav-user">
             <div className="pf-avatar pf-avatar--nav">{getInitials(displayName)}</div>
@@ -318,7 +318,7 @@ export default function ProfilePage() {
             </div>
             {/* action buttons */}
             <div className="pf-hero-actions">
-              <Link to="/preferences/edit" className="pf-action-btn pf-action-btn--primary">
+              <Link to="/preferences" className="pf-action-btn pf-action-btn--primary">
                 <Pencil size={14} />
                 Edit Preferences
               </Link>
@@ -410,7 +410,7 @@ export default function ProfilePage() {
               )}
             </div>
 
-            <Link to="/preferences/edit" className="pf-card-cta">
+            <Link to="/preferences" className="pf-card-cta">
               <Pencil size={12} /> Update preferences <ChevronRight size={12} />
             </Link>
           </Card>

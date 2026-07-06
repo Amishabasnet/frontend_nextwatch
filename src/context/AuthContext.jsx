@@ -35,10 +35,20 @@ export function AuthProvider({ children }) {
 
   const clearSession = useCallback(() => {
     persistToken(null);
+    localStorage.removeItem("nextwatch_refresh_token");
     setUser(null);
     setRole(null);
     setIsAuthenticated(false);
   }, [persistToken]);
+
+  // Listen for token refresh failures from the axios interceptor
+  useEffect(() => {
+    const handler = () => {
+      clearSession();
+    };
+    window.addEventListener("nw:session-expired", handler);
+    return () => window.removeEventListener("nw:session-expired", handler);
+  }, [clearSession]);
 
   const authHeaders = useCallback(
     () => ({
@@ -57,6 +67,9 @@ export function AuthProvider({ children }) {
       });
       const data = await res.json();
       if (!res.ok) return { success: false, error: data.message || "Registration failed." };
+      if (data.data.refreshToken) {
+        localStorage.setItem("nextwatch_refresh_token", data.data.refreshToken);
+      }
       applyUserSession(data.data.token, data.data.user);
       return { success: true };
     } catch {
@@ -73,6 +86,9 @@ export function AuthProvider({ children }) {
       });
       const data = await res.json();
       if (!res.ok) return { success: false, error: data.message || "Invalid credentials." };
+      if (data.data.refreshToken) {
+        localStorage.setItem("nextwatch_refresh_token", data.data.refreshToken);
+      }
       applyUserSession(data.data.token, data.data.user);
       return { success: true };
     } catch {

@@ -6,7 +6,7 @@ import {
   Eye, HelpCircle, X, AlertCircle, Compass, Loader2, SmilePlus,
   LogOut, TrendingUp,
 } from "lucide-react";
-import { getRecommendations } from "../../services/api";
+import { getRecommendations, postWatchlist, deleteWatchlist, getWatchlist, searchMovies } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import "./RecommendationPage.css";
 
@@ -92,49 +92,49 @@ export default function RecommendationsPage() {
   const [watchlist, setWatchlist] = useState(new Set());
   const [activeMovie, setActiveMovie] = useState(null);
 
-  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
   const fetchByMood = useCallback(async (mood) => {
     setStatus("loading");
     setErrorMessage("");
     try {
-      const token = localStorage.getItem("token");
       const genres = MOOD_GENRE_MAP[mood] || [];
 
-      // Try mood-based endpoint first, fall back to genre filter
+      // Try mood-based endpoint first via searchMovies
       let movies = [];
       try {
-        const res = await fetch(`${API_BASE}/movies/by-mood/${mood}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        movies = Array.isArray(data?.data) ? data.data : [];
-      // eslint-disable-next-line no-unused-vars
-      } catch (_) { /* empty */ }
+        const res = await searchMovies({ mood });
+        const d = res.data;
+        movies = Array.isArray(d) ? d : Array.isArray(d?.movies) ? d.movies : [];
+      } catch {
+        /* ignore failures from mood search */
+      }
 
-      // If no mood-tagged movies, fallback to genre-based filter
+      // If no mood-tagged movies, fallback to genre-based search via searchMovies
       if (movies.length === 0 && genres.length > 0) {
-        const params = genres.map((g) => `genres=${g}`).join("&");
-        const res = await fetch(`${API_BASE}/movies?${params}&limit=20`, {
-          headers: { Authorization: `Bearer ${token}` },
+        // Try each preferred genre and merge results
+        const results = await Promise.all(
+          genres.map(genre => searchMovies({ genre }).then(r => {
+            const d = r.data;
+            return Array.isArray(d) ? d : Array.isArray(d?.movies) ? d.movies : [];
+          }).catch(() => []))
+        );
+        // Flatten and deduplicate by _id
+        const seen = new Set();
+        movies = results.flat().filter(m => {
+          const id = String(m._id ?? m.id ?? '');
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
         });
-        const data = await res.json();
-        movies = Array.isArray(data?.data?.movies)
-          ? data.data.movies
-          : Array.isArray(data?.data)
-          ? data.data
-          : [];
       }
 
       setItems(movies.map(normalizeMovie).filter(Boolean));
       setSource("mood");
       setStatus("success");
-    // eslint-disable-next-line no-unused-vars
-    } catch (err) {
+    } catch {
       setErrorMessage("Couldn't load movies for this mood. Please try again.");
       setStatus("error");
     }
-  }, [API_BASE]);
+  }, []);
 
   const fetchRecommendations = useCallback(async () => {
     if (!user?.id) return;
@@ -181,19 +181,44 @@ export default function RecommendationsPage() {
     }
   };
 
-  const handleAddToWatchlist = useCallback((id, title) => {
+  // Load watchlist from backend on mount
+  useEffect(() => {
+    const loadWatchlist = async () => {
+      try {
+        const res = await getWatchlist();
+        const items = Array.isArray(res.data) ? res.data : (res.data?.watchlist ?? []);
+        const ids = new Set(items.map(i => i.movieId ?? i._id ?? i.id).filter(Boolean));
+        setWatchlist(ids);
+      } catch { /* non-critical */ }
+    };
+    if (!authLoading) loadWatchlist();
+  }, [authLoading]);
+
+  const handleAddToWatchlist = useCallback(async (id, title) => {
+    const inList = watchlist.has(id);
     setWatchlist((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-        toast("Removed from Watchlist", { icon: "🗑️", theme: "dark" });
-      } else {
-        next.add(id);
-        toast.success(`Added "${title}" to Watchlist`);
-      }
+      if (inList) { next.delete(id); } else { next.add(id); }
       return next;
     });
-  }, []);
+    try {
+      if (inList) {
+        await deleteWatchlist(id);
+        toast("Removed from Watchlist", { icon: "🗑️", theme: "dark" });
+      } else {
+        await postWatchlist({ movieId: id });
+        toast.success(`Added "${title}" to Watchlist`);
+      }
+    } catch {
+      // revert on failure
+      setWatchlist((prev) => {
+        const next = new Set(prev);
+        if (inList) { next.add(id); } else { next.delete(id); }
+        return next;
+      });
+      toast.error("Couldn't update Watchlist");
+    }
+  }, [watchlist]);
 
   const handleViewDetails = useCallback((id) => navigate(`/movies/${id}`), [navigate]);
 

@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   Clapperboard, TrendingUp, Clock, Sparkles,
-  Star, SmilePlus, ListChecks, LogOut, Loader2,
+  Star, SmilePlus, ListChecks, LogOut, Loader2, User, Settings,
 } from "lucide-react";
 import {
   getLatestMood, getPreferences, getHistory,
   getRecommendations, getMovies,
+  postWatchlist, deleteWatchlist, getWatchlist,
 } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import MoodBadge, { MOOD_CONFIG } from "../../components/MoodBadge";
@@ -111,6 +112,16 @@ function LoadingScreen() {
 
 export default function DashboardPage() {
   const { user, isLoading: authLoading, logout } = useAuth();
+  const navigate = useNavigate();
+  const [avatarOpen, setAvatarOpen] = useState(false);
+
+  // Close avatar dropdown on outside click
+  useEffect(() => {
+    if (!avatarOpen) return;
+    const close = () => setAvatarOpen(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [avatarOpen]);
 
   const [recs, setRecs]               = useState({ personalized: [], moodBased: [], historyBased: [] });
   const [latestMood, setLatestMood]   = useState(null);
@@ -130,12 +141,12 @@ export default function DashboardPage() {
       }
       if (!didCancel) setLoading(true);
 
-      const [recRes, moodRes, prefRes, histRes, movRes] = await Promise.allSettled([
+      // Fetch recs, mood, prefs, history first — use results to inform movie fetch
+      const [recRes, moodRes, prefRes, histRes] = await Promise.allSettled([
         getRecommendations(user.id),
         getLatestMood(user.id),
         getPreferences(user.id),
         getHistory(user.id),
-        getMovies(),
       ]);
 
       if (didCancel) return;
@@ -144,7 +155,21 @@ export default function DashboardPage() {
       if (moodRes.status === "fulfilled" && moodRes.value.data) setLatestMood(moodRes.value.data);
       if (prefRes.status === "fulfilled" && prefRes.value.data) setPreferences(prefRes.value.data);
       if (histRes.status === "fulfilled") setHistory(normalizeHistory(histRes.value.data));
-      if (movRes.status === "fulfilled") setMovies(normalizeMovieList(movRes.value.data));
+
+      // Build movie fetch params from mood + preferences
+      const mood = moodRes.status === "fulfilled" ? moodRes.value.data?.mood : null;
+      const favGenres = prefRes.status === "fulfilled"
+        ? (prefRes.value.data?.favoriteGenres ?? [])
+        : [];
+      const movieParams = {};
+      if (mood) movieParams.mood = mood;
+      else if (favGenres.length > 0) movieParams.genre = favGenres[0];
+
+      const movRes = await getMovies(Object.keys(movieParams).length ? movieParams : undefined)
+        .catch(() => null);
+
+      if (didCancel) return;
+      if (movRes) setMovies(normalizeMovieList(movRes.data));
 
       if (!didCancel) setLoading(false);
     };
@@ -158,24 +183,49 @@ export default function DashboardPage() {
     };
   }, [authLoading, user?.id]);
 
-  const handleAddToWatchlist = useCallback((id) => {
+  // Load persisted watchlist from backend
+  useEffect(() => {
+    const loadWatchlist = async () => {
+      try {
+        const res = await getWatchlist();
+        const items = Array.isArray(res.data) ? res.data : (res.data?.watchlist ?? res.data?.items ?? []);
+        const ids = new Set(items.map(i => String(i.movieId ?? i._id ?? i.id)).filter(Boolean));
+        setWatchlist(ids);
+      } catch { /* non-critical */ }
+    };
+    if (!authLoading) loadWatchlist();
+  }, [authLoading]);
+
+  const handleAddToWatchlist = useCallback(async (id) => {
+    const inList = watchlist.has(id);
+    // Optimistic update
     setWatchlist((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-        toast("Removed from Watchlist", { icon: "🗑️", theme: "dark" });
-      } else {
-        next.add(id);
-        toast.success("Added to Watchlist");
-      }
+      if (inList) { next.delete(id); } else { next.add(id); }
       return next;
     });
-  }, []);
+    try {
+      if (inList) {
+        await deleteWatchlist(id);
+        toast("Removed from Watchlist", { icon: "🗑️", theme: "dark" });
+      } else {
+        await postWatchlist({ movieId: id });
+        toast.success("Added to Watchlist");
+      }
+    } catch {
+      // Revert on failure
+      setWatchlist((prev) => {
+        const next = new Set(prev);
+        if (inList) { next.add(id); } else { next.delete(id); }
+        return next;
+      });
+      toast.error("Couldn't update Watchlist");
+    }
+  }, [watchlist]);
 
-  const handleViewDetails = useCallback(() => {
-    toast.info("Movie details coming soon.", { autoClose: 2000 });
-    // navigate(`/movies/${id}`);  // uncomment when route is ready
-  }, []);
+  const handleViewDetails = useCallback((id) => {
+    navigate(`/movies/${id}`);
+  }, [navigate]);
 
   if (authLoading) return <LoadingScreen />;
 
@@ -230,29 +280,58 @@ export default function DashboardPage() {
             Update Mood
           </Link>
 
-          {/* Avatar */}
-          <div className="flex items-center gap-2 pl-1">
-            <div
-              className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full text-[0.68rem] font-black text-white"
-              style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #2563eb 100%)" }}
-              title={displayName}
+          {/* Avatar dropdown */}
+          <div className="relative" style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setAvatarOpen(prev => !prev)}
+              className="flex items-center gap-2 pl-1 cursor-pointer bg-transparent border-none"
             >
-              {getInitials(displayName)}
-            </div>
-            <span className="hidden sm:block text-[0.82rem] font-semibold text-[#eeeef5] max-w-[120px] truncate">
-              {displayName}
-            </span>
+              <div
+                className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full text-[0.68rem] font-black text-white"
+                style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #2563eb 100%)" }}
+                title={displayName}
+              >
+                {getInitials(displayName)}
+              </div>
+              <span className="hidden sm:block text-[0.82rem] font-semibold text-[#eeeef5] max-w-[120px] truncate">
+                {displayName}
+              </span>
+            </button>
+            {avatarOpen && (
+              <div
+                style={{
+                  position: "absolute", top: "calc(100% + 8px)", right: 0,
+                  background: "#1a1a24", border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 12, padding: "6px", minWidth: 160, zIndex: 200,
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                }}
+                onClick={() => setAvatarOpen(false)}
+              >
+                <Link to="/profile" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, color: "#9292b0", textDecoration: "none", fontSize: "0.82rem", fontWeight: 600 }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  <User size={13} strokeWidth={2} /> Profile
+                </Link>
+                <Link to="/settings" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, color: "#9292b0", textDecoration: "none", fontSize: "0.82rem", fontWeight: 600 }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  <Settings size={13} strokeWidth={2} /> Settings
+                </Link>
+                <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "4px 0" }} />
+                <button type="button" onClick={logout} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, color: "#f87171", background: "transparent", border: "none", fontSize: "0.82rem", fontWeight: 600, width: "100%", cursor: "pointer" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(248,113,113,0.08)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  <LogOut size={13} strokeWidth={2} /> Sign out
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Sign out */}
-          <button
-            type="button"
-            onClick={logout}
-            className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-3 py-1.5 text-[0.76rem] font-semibold text-[#6b6b8a] hover:border-white/15 hover:text-[#9292b0] transition-all"
-          >
-            <LogOut size={13} strokeWidth={2} />
-            <span className="hidden sm:block">Sign out</span>
-          </button>
+
         </div>
       </nav>
 
