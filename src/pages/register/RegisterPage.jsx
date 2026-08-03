@@ -105,6 +105,10 @@ export default function RegisterPage() {
       navigate("/login", { replace: true, state: {
         registeredEmail: form.email.trim(),
       }, });
+    } else {
+      const message = result.error || "Registration failed. Please try again.";
+      setErrors((prev) => ({ ...prev, server: message }));
+      toast.error(message);
     }
   };
 
@@ -163,7 +167,7 @@ export default function RegisterPage() {
 
           {/* Phone */}
           <div className="auth-field">
-            <label htmlFor="phone" className="auth-label">Phone number <span style={{ color: "#6b6b8a", fontWeight: 400 }}>(optional)</span></label>
+            <label htmlFor="phone" className="auth-label">Phone number <span style={{ color: "#6b6b8a", fontWeight: 400 }}></span></label>
             <input
               id="phone"
               name="phone"
