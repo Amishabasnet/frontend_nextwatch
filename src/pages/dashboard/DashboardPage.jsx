@@ -1,19 +1,44 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   Clapperboard, TrendingUp, Clock, Sparkles,
   Star, SmilePlus, ListChecks, LogOut, Loader2, User, Settings,
+  Search, SlidersHorizontal, X, RotateCcw,
 } from "lucide-react";
 import {
   getLatestMood, getPreferences, getHistory,
-  getRecommendations, getMovies,
+  getRecommendations, getMovies, searchMovies,
   postWatchlist, deleteWatchlist, getWatchlist,
 } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import MoodBadge, { MOOD_CONFIG } from "../../components/MoodBadge";
 import GenreBadge from "../../components/GenreBadge";
 import MovieSection                    from "../../components/MovieSelection";
+
+const DASH_GENRES = [
+  "Action", "Adventure", "Animation", "Comedy", "Crime",
+  "Documentary", "Drama", "Fantasy", "Horror", "Mystery",
+  "Romance", "Sci-Fi", "Thriller", "Western",
+];
+
+const RATING_OPTIONS = [
+  { value: "", label: "Any rating" },
+  { value: "9", label: "9+ Exceptional" },
+  { value: "8", label: "8+ Great" },
+  { value: "7", label: "7+ Good" },
+  { value: "6", label: "6+ Decent" },
+  { value: "5", label: "5+ Okay" },
+];
+
+function useDebouncedValue(value, delay) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
 
 function normalizeMovie(raw) {
   if (!raw) return null;
@@ -114,11 +139,18 @@ export default function DashboardPage() {
   const { user, isLoading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const avatarRef = useRef(null);
 
-  // Close avatar dropdown on outside click
+  // Close avatar dropdown on outside click only (clicks inside — e.g. the
+  // Profile/Settings links — must be left alone or Link's own click handler
+  // never gets to fire since mousedown precedes click).
   useEffect(() => {
     if (!avatarOpen) return;
-    const close = () => setAvatarOpen(false);
+    const close = (e) => {
+      if (avatarRef.current && !avatarRef.current.contains(e.target)) {
+        setAvatarOpen(false);
+      }
+    };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [avatarOpen]);
@@ -130,6 +162,77 @@ export default function DashboardPage() {
   const [movies, setMovies]           = useState([]);
   const [loading, setLoading]         = useState(true);
   const [watchlist, setWatchlist]     = useState(new Set());
+
+  // --- Search + side filter panel state ---
+  const [searchQuery, setSearchQuery]   = useState("");
+  const [filterGenre, setFilterGenre]   = useState("");
+  const [filterRating, setFilterRating] = useState("");
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [searchResults, setSearchResults]     = useState([]);
+  const [searchStatus, setSearchStatus]       = useState("idle"); // idle | loading | success | error
+  const filterPanelRef = useRef(null);
+  const searchAbortRef = useRef(null);
+
+  const debouncedQuery = useDebouncedValue(searchQuery, 400);
+  const isSearchActive = Boolean(debouncedQuery.trim() || filterGenre || filterRating);
+  const activeFilterCount = (filterGenre ? 1 : 0) + (filterRating ? 1 : 0);
+
+  // Close the side filter panel on outside click
+  useEffect(() => {
+    if (!filterPanelOpen) return;
+    const handleClick = (e) => {
+      if (filterPanelRef.current && !filterPanelRef.current.contains(e.target)) {
+        setFilterPanelOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [filterPanelOpen]);
+
+  // Run search whenever the debounced query or the side filters change
+  useEffect(() => {
+    if (!isSearchActive) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSearchResults([]);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSearchStatus("idle");
+      return;
+    }
+
+    if (searchAbortRef.current) searchAbortRef.current.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+
+    const run = async () => {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSearchStatus("loading");
+      try {
+        const params = {};
+        if (debouncedQuery.trim()) params.q = debouncedQuery.trim();
+        if (filterGenre) params.genre = filterGenre;
+        if (filterRating) params.rating = filterRating;
+
+        const res = await searchMovies(params, { signal: controller.signal });
+        setSearchResults(normalizeMovieList(res.data));
+        setSearchStatus("success");
+      } catch (err) {
+        if (err.name === "CanceledError" || err.name === "AbortError") return;
+        console.error("Dashboard search failed:", err);
+        setSearchStatus("error");
+      }
+    };
+    run();
+
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery, filterGenre, filterRating]);
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setFilterGenre("");
+    setFilterRating("");
+    setFilterPanelOpen(false);
+  };
 
   useEffect(() => {
     let didCancel = false;
@@ -281,7 +384,7 @@ export default function DashboardPage() {
           </Link>
 
           {/* Avatar dropdown */}
-          <div className="relative" style={{ position: "relative" }}>
+          <div className="relative" style={{ position: "relative" }} ref={avatarRef}>
             <button
               type="button"
               onClick={() => setAvatarOpen(prev => !prev)}
@@ -337,6 +440,159 @@ export default function DashboardPage() {
 
       <main className="relative z-[1] flex-1 w-full max-w-[1440px] mx-auto px-5 sm:px-8 py-8 space-y-10">
 
+        {/* Search bar + side filter panel */}
+        <section className="dash-section relative z-30" style={{ animationDelay: "0ms" }}>
+          <div className="flex items-stretch gap-2 relative">
+            <div className="relative flex-1">
+              <Search
+                size={16}
+                strokeWidth={2}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6b6b8a]"
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search movies by title..."
+                className="w-full rounded-xl border border-white/[0.08] bg-[#13131a] py-2.5 pl-10 pr-9 text-[0.86rem] font-medium text-[#eeeef5] placeholder:text-[#52526a] outline-none transition-colors focus:border-[#8b5cf6]/50"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6b6b8a] hover:text-[#eeeef5] bg-transparent border-none cursor-pointer p-0.5"
+                  aria-label="Clear search text"
+                >
+                  <X size={14} strokeWidth={2} />
+                </button>
+              )}
+            </div>
+
+            <div className="relative" ref={filterPanelRef}>
+              <button
+                type="button"
+                onClick={() => setFilterPanelOpen((prev) => !prev)}
+                className="relative flex h-full items-center gap-1.5 rounded-xl border px-3.5 text-[0.82rem] font-semibold cursor-pointer transition-colors"
+                style={{
+                  borderColor: activeFilterCount ? "rgba(139,92,246,0.5)" : "rgba(255,255,255,0.08)",
+                  background: activeFilterCount ? "rgba(139,92,246,0.12)" : "#13131a",
+                  color: activeFilterCount ? "#c4b5fd" : "#9292b0",
+                }}
+              >
+                <SlidersHorizontal size={14} strokeWidth={2} />
+                <span className="hidden sm:inline">Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#8b5cf6] text-[0.62rem] font-bold text-white">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Side filter panel */}
+              {filterPanelOpen && (
+                <div
+                  className="absolute right-0 top-[calc(100%+8px)] z-[150] w-[240px] rounded-xl border border-white/[0.1] bg-[#15151d] p-4 shadow-[0_12px_36px_rgba(0,0,0,0.5)]"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[0.72rem] font-bold uppercase tracking-[0.08em] text-[#a78bfa]">
+                      Filter results
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFilterPanelOpen(false)}
+                      className="text-[#6b6b8a] hover:text-[#eeeef5] bg-transparent border-none cursor-pointer p-0.5"
+                      aria-label="Close filters"
+                    >
+                      <X size={14} strokeWidth={2} />
+                    </button>
+                  </div>
+
+                  <label className="block text-[0.7rem] font-bold uppercase tracking-[0.06em] text-[#52526a] mb-1.5">
+                    Genre
+                  </label>
+                  <select
+                    value={filterGenre}
+                    onChange={(e) => setFilterGenre(e.target.value)}
+                    className="w-full mb-3.5 rounded-lg border border-white/[0.08] bg-[#0b0b0f] px-2.5 py-2 text-[0.8rem] font-medium text-[#eeeef5] outline-none cursor-pointer focus:border-[#8b5cf6]/50"
+                  >
+                    <option value="">Any genre</option>
+                    {DASH_GENRES.map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+
+                  <label className="block text-[0.7rem] font-bold uppercase tracking-[0.06em] text-[#52526a] mb-1.5">
+                    Minimum rating
+                  </label>
+                  <select
+                    value={filterRating}
+                    onChange={(e) => setFilterRating(e.target.value)}
+                    className="w-full mb-4 rounded-lg border border-white/[0.08] bg-[#0b0b0f] px-2.5 py-2 text-[0.8rem] font-medium text-[#eeeef5] outline-none cursor-pointer focus:border-[#8b5cf6]/50"
+                  >
+                    {RATING_OPTIONS.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => { setFilterGenre(""); setFilterRating(""); }}
+                    disabled={!activeFilterCount}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/[0.08] bg-transparent py-2 text-[0.78rem] font-semibold text-[#9292b0] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:border-white/20 hover:enabled:text-[#eeeef5] transition-colors"
+                  >
+                    <RotateCcw size={12} strokeWidth={2} />
+                    Reset filters
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {isSearchActive ? (
+          <section className="dash-section" style={{ animationDelay: "20ms" }}>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[0.8rem] text-[#6b6b8a]">
+                {searchStatus === "loading" && "Searching..."}
+                {searchStatus === "error" && (
+                  <span className="text-[#f87171]">Search failed — couldn't reach the server.</span>
+                )}
+                {searchStatus === "success" &&
+                  `${searchResults.length} result${searchResults.length === 1 ? "" : "s"} found`}
+              </p>
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="text-[0.78rem] font-semibold text-[#a78bfa] bg-transparent border-none cursor-pointer p-0"
+              >
+                Clear search
+              </button>
+            </div>
+            <MovieSection
+              title="Search Results"
+              subtitle={
+                [
+                  debouncedQuery.trim() && `"${debouncedQuery.trim()}"`,
+                  filterGenre,
+                  filterRating && `${filterRating}+ rating`,
+                ].filter(Boolean).join(" · ") || "Matching your search"
+              }
+              icon={Search}
+              iconColor="#a78bfa"
+              movies={searchResults}
+              loading={searchStatus === "loading"}
+              emptyMessage={
+                searchStatus === "error"
+                  ? "Something went wrong reaching the server. Please try again."
+                  : "No movies matched your search. Try a different title, genre, or rating."
+              }
+              onAddToWatchlist={handleAddToWatchlist}
+              onViewDetails={handleViewDetails}
+              watchlist={watchlist}
+            />
+          </section>
+        ) : (
+        <>
         <section className="dash-section" style={{ animationDelay: "0ms" }}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -485,6 +741,8 @@ export default function DashboardPage() {
               watchlist={watchlist}
             />
           </section>
+        )}
+        </>
         )}
       </main>
 

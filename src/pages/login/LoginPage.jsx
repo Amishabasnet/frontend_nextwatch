@@ -12,7 +12,7 @@ export default function LoginPage() {
 
   const from = location.state?.from?.pathname || "/dashboard";
 
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ email: location.state?.registeredEmail || "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});

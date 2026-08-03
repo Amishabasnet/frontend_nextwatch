@@ -132,7 +132,7 @@ export function AuthProvider({ children }) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       getCurrentUser();
     }
-  }, [getCurrentUser]);
+  }, []);
 
 
   const value = {
