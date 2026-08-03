@@ -36,8 +36,15 @@ const MOOD_GENRE_MAP = {
 
 function normalizeMovie(raw) {
   if (!raw) return null;
+  const id = raw._id ?? raw.movieId ?? raw.id ?? null;
+  if (!id) {
+    // No real id from the API — skip rather than fabricate one, since a
+    // fake id would 500 when the user tries to view/save this movie.
+    console.warn("Recommendation missing id, skipping:", raw?.title ?? raw);
+    return null;
+  }
   return {
-    id: raw._id ?? raw.movieId ?? raw.id ?? String(Math.random()),
+    id,
     title: raw.title ?? "Untitled",
     posterUrl: raw.posterUrl ?? raw.poster_url ?? null,
     genres: Array.isArray(raw.genres) ? raw.genres.filter(Boolean) : [],

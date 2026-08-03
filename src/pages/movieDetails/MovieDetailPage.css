@@ -157,6 +157,21 @@
   background: rgba(139,92,246,0.2); border-color: rgba(139,92,246,0.55);
 }
 
+.md-favorite-btn {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  border-radius: 12px; padding: 11px 16px;
+  font-size: 0.875rem; font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.09);
+  background: #1a1a24; color: #9292b0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.md-favorite-btn:hover:not(:disabled) { background: rgba(244,63,94,0.12); border-color: rgba(244,63,94,0.4); color: #fb7185; }
+.md-favorite-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.md-favorite-btn--active {
+  background: rgba(244,63,94,0.16); border-color: rgba(244,63,94,0.5); color: #fb7185;
+}
+.md-favorite-btn--active:hover:not(:disabled) { background: rgba(244,63,94,0.22); border-color: rgba(244,63,94,0.6); }
+
 .md-trailer-btn {
   display: flex; align-items: center; gap: 8px; cursor: pointer;
   border-radius: 12px; padding: 11px 22px;
