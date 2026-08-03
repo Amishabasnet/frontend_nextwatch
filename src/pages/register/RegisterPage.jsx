@@ -69,11 +69,10 @@ export default function RegisterPage() {
     setIsLoading(false);
 
     if (result.success) {
-      toast.success("Account created! Welcome to NextWatch 🎬");
-      navigate("/consent", { replace: true });
-    } else {
-      toast.error(result.error || "Registration failed.");
-      setErrors({ server: result.error });
+      toast.success("Account created successfully. Please sign");
+      navigate("/login", { replace: true, state: {
+        registeredEmail: form.email.trim(),
+      }, });
     }
   };
 

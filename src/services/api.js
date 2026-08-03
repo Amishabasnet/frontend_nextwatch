@@ -112,29 +112,34 @@ export default api;
 export const getConsent = (userId) => api.get(`/consent/${userId}`);
 export const putConsent = (userId, payload) => api.put(`/consent/${userId}`, payload);
 
-export const getPreferences = (userId) =>
-  userId ? api.get(`/preferences/${userId}`) : api.get("/preferences");
+// NOTE: the backend derives the current user from the JWT (req.user._id) for
+// preferences/mood/history/watchlist — it does NOT accept a :userId path param
+// for these. The userId args below are kept (and ignored) so existing call
+// sites don't need to change.
+export const getPreferences = () => api.get("/preferences");
 export const putPreferences = (_userId, payload) => api.put("/preferences", payload);
 
 export const postMood      = (payload) => api.post("/mood", payload);
-export const getMoods      = (userId)  => userId ? api.get(`/mood/${userId}`) : api.get("/mood");
-export const getLatestMood = (userId)  => userId ? api.get(`/mood/${userId}/latest`) : api.get("/mood/latest");
+export const getMoods      = (_userId, params) => api.get("/mood", { params });
+export const getLatestMood = () => api.get("/mood/latest");
 
 export const getRecommendations = (userId) => api.get(`/recommendations/${userId}`);
 
-export const getHistory       = (userId)  => userId ? api.get(`/history/${userId}`) : api.get("/history");
-export const getHistoryByUser = (userId)  => api.get(`/history/${userId}`);
-export const postHistory      = (payload) => api.post("/history", payload);
-export const deleteHistory    = (userId)  => api.delete(`/history/${userId}`);
+export const getHistory        = (_userId, params) => api.get("/history", { params });
+export const getHistoryByUser  = (_userId, params) => api.get("/history", { params });
+export const postHistory       = (payload) => api.post("/history", payload);
+export const updateHistoryEntry = (movieId, payload) => api.put(`/history/${movieId}`, payload);
+export const removeHistoryItem  = (movieId) => api.delete(`/history/${movieId}`);
+export const deleteHistory     = () => api.delete("/history/clear");
 
 export const getMovies    = (params)  => api.get("/movies", { params });
 export const getMovieById = (id)      => api.get(`/movies/${id}`);
-export const searchMovies = (params)  => api.get("/movies/search", { params });
+export const searchMovies = (params, config = {}) => api.get("/movies/search", { params, ...config });
 
-export const getWatchlist       = ()         => api.get("/watchlist");
-export const getWatchlistByUser = (userId)   => api.get(`/watchlist/${userId}`);
-export const postWatchlist      = (payload)  => api.post("/watchlist/add", payload);
-export const deleteWatchlist    = (movieId)  => api.delete(`/watchlist/remove/${movieId}`);
+export const getWatchlist       = (params)   => api.get("/watchlist", { params });
+export const getWatchlistByUser = (_userId, params) => api.get("/watchlist", { params });
+export const postWatchlist      = (payload)  => api.post("/watchlist", payload);
+export const deleteWatchlist    = (movieId)  => api.delete(`/watchlist/${movieId}`);
 
 export const postRating        = (payload)     => api.post("/ratings", payload);
 export const getRatingsByMovie = (movieId)     => api.get(`/ratings/${movieId}`);
@@ -142,4 +147,8 @@ export const getRatingsByUser  = (userId)      => api.get(`/ratings/user/${userI
 export const putRating         = (id, payload) => api.put(`/ratings/${id}`, payload);
 export const deleteRating      = (id)          => api.delete(`/ratings/${id}`);
 
+export const getProfile    = () => api.get("/auth/profile");
+export const updateProfile = (payload) => api.put("/auth/profile", payload);
+
 export const deleteUser = (userId) => api.delete(`/users/${userId}`);
+
