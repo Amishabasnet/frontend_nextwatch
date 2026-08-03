@@ -12,6 +12,7 @@ import {
   Users,
   Bookmark,
   BookmarkCheck,
+  Heart,
   Play,
   X,
   Loader2,
@@ -100,6 +101,7 @@ export default function MovieDetailsPage() {
   const [errorMsg, setErrorMsg]       = useState("");
   const [inWatchlist, setInWatchlist] = useState(false);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
 
   // Full rating panel state
@@ -206,6 +208,35 @@ export default function MovieDetailsPage() {
       toast.error("Couldn't update Watchlist");
     } finally {
       setWatchlistLoading(false);
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (favoriteLoading) return;
+    setFavoriteLoading(true);
+    const wasFavorite = !!existingRating?.liked;
+    try {
+      let saved;
+      if (existingRating) {
+        const res = await putRating(existingRating._id ?? existingRating.id, {
+          liked: !wasFavorite,
+          disliked: false,
+        });
+        saved = res.data?.rating ?? res.data ?? { ...existingRating, liked: !wasFavorite, disliked: false };
+      } else {
+        // No rating yet — create one with a neutral default score just to
+        // carry the favorite flag. The user can still rate properly below.
+        const res = await postRating({ movieId: id, rating: 5, liked: true });
+        saved = res.data?.rating ?? res.data ?? { movieId: id, rating: 5, liked: true };
+      }
+      setExistingRating(saved);
+      toast.success(
+        wasFavorite ? `Removed "${movie?.title}" from Favorites` : `Added "${movie?.title}" to Favorites`
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.message ?? "Couldn't update favorite.");
+    } finally {
+      setFavoriteLoading(false);
     }
   };
 
@@ -327,6 +358,9 @@ export default function MovieDetailsPage() {
             inWatchlist={inWatchlist}
             watchlistLoading={watchlistLoading}
             onWatchlist={handleWatchlist}
+            isFavorite={!!existingRating?.liked}
+            favoriteLoading={favoriteLoading}
+            onToggleFavorite={handleToggleFavorite}
             embedUrl={embedUrl}
             trailerOpen={trailerOpen}
             setTrailerOpen={setTrailerOpen}
@@ -371,6 +405,7 @@ export default function MovieDetailsPage() {
 
 function MovieContent({
   movie, inWatchlist, watchlistLoading, onWatchlist,
+  isFavorite, favoriteLoading, onToggleFavorite,
   embedUrl, setTrailerOpen,
   existingRating, ratingStatus, isEditing, setIsEditing,
   onSubmitRating, onDeleteRating,
@@ -469,6 +504,22 @@ function MovieContent({
                 <Bookmark size={15} strokeWidth={2} />
               )}
               {inWatchlist ? "Saved to Watchlist" : "Add to Watchlist"}
+            </button>
+
+            <button
+              type="button"
+              className={`md-favorite-btn ${isFavorite ? "md-favorite-btn--active" : ""}`}
+              onClick={onToggleFavorite}
+              disabled={favoriteLoading}
+              aria-pressed={isFavorite}
+              title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+            >
+              {favoriteLoading ? (
+                <Loader2 size={15} strokeWidth={2} className="md-spin" />
+              ) : (
+                <Heart size={15} strokeWidth={2} fill={isFavorite ? "currentColor" : "none"} />
+              )}
+              {isFavorite ? "Favorited" : "Favorite"}
             </button>
 
             {embedUrl && (

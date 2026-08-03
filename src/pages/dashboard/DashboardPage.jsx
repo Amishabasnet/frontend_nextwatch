@@ -49,8 +49,16 @@ function normalizeMovie(raw) {
       ? `https://image.tmdb.org/t/p/w500${raw.poster_path}`
       : null);
 
+  const id = raw._id ?? raw.id ?? raw.movieId ?? null;
+  if (!id) {
+    // No real id from the API — skip rather than fabricate one, since a
+    // fake id would 500 when the user tries to view/save this movie.
+    console.warn("Movie missing id, skipping:", raw?.title ?? raw);
+    return null;
+  }
+
   return {
-    id: raw._id ?? raw.id ?? raw.movieId ?? String(Math.random()),
+    id,
     title: raw.title ?? "Untitled",
     posterUrl,
     genres: Array.isArray(raw.genres)
