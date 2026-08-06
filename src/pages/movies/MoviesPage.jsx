@@ -26,8 +26,15 @@ const PAGE_SIZE = 24;
 
 function normalizeMovie(raw) {
   if (!raw) return null;
+  const id = raw._id ?? raw.id ?? raw.movieId ?? null;
+  if (!id) {
+    // No real id from the API — skip rather than fabricate one, since a
+    // fake id would 500 when the user tries to view/save this movie.
+    console.warn("Movie missing id, skipping:", raw?.title ?? raw);
+    return null;
+  }
   return {
-    id: raw._id ?? raw.id ?? raw.movieId ?? String(Math.random()),
+    id,
     title: raw.title ?? "Untitled",
     posterUrl: raw.posterUrl ?? raw.poster_url ?? null,
     genres: Array.isArray(raw.genres) ? raw.genres.filter(Boolean) : [],

@@ -12,6 +12,7 @@ import {
   postWatchlist, deleteWatchlist, getWatchlist,
 } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
+import BackButton from "../../components/BackButton";
 import MoodBadge, { MOOD_CONFIG } from "../../components/MoodBadge";
 import GenreBadge from "../../components/GenreBadge";
 import MovieSection                    from "../../components/MovieSelection";
@@ -49,8 +50,16 @@ function normalizeMovie(raw) {
       ? `https://image.tmdb.org/t/p/w500${raw.poster_path}`
       : null);
 
+  const id = raw._id ?? raw.id ?? raw.movieId ?? null;
+  if (!id) {
+    // No real id from the API — skip rather than fabricate one, since a
+    // fake id would 500 when the user tries to view/save this movie.
+    console.warn("Movie missing id, skipping:", raw?.title ?? raw);
+    return null;
+  }
+
   return {
-    id: raw._id ?? raw.id ?? raw.movieId ?? String(Math.random()),
+    id,
     title: raw.title ?? "Untitled",
     posterUrl,
     genres: Array.isArray(raw.genres)
@@ -366,13 +375,21 @@ export default function DashboardPage() {
       />
 
       <nav className="sticky top-0 z-[100] flex h-[58px] items-center justify-between gap-4 border-b border-white/[0.07] bg-[#0b0b0f]/85 px-5 sm:px-8 backdrop-blur-[14px]">
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 no-underline flex-shrink-0">
+        {/* Logo — refreshes the dashboard in place instead of routing to the
+            public landing page (this nav only appears once logged in) */}
+        <a
+          href="/dashboard"
+          onClick={(e) => {
+            e.preventDefault();
+            window.location.assign("/dashboard");
+          }}
+          className="flex items-center gap-2 no-underline flex-shrink-0"
+        >
           <Clapperboard size={20} strokeWidth={1.8} className="text-[#a78bfa]" />
           <span className="text-[1rem] font-bold tracking-[-0.02em] text-[#eeeef5]">
             Next<span className="text-[#a78bfa]">Watch</span>
           </span>
-        </Link>
+        </a>
 
         <div className="flex items-center gap-2">
           <Link
@@ -439,6 +456,8 @@ export default function DashboardPage() {
       </nav>
 
       <main className="relative z-[1] flex-1 w-full max-w-[1440px] mx-auto px-5 sm:px-8 py-8 space-y-10">
+        <BackButton />
+
 
         {/* Search bar + side filter panel */}
         <section className="dash-section relative z-30" style={{ animationDelay: "0ms" }}>
@@ -746,22 +765,27 @@ export default function DashboardPage() {
         )}
       </main>
 
-      <footer className="relative z-[1] flex items-center justify-center gap-2.5 border-t border-white/[0.06] py-5 mt-4">
-        <Link
-          to="/privacy-policy"
-          className="text-[0.76rem] text-[#52526a] no-underline hover:text-[#9292b0] transition-colors"
-        >
-          Privacy Policy
-        </Link>
-        <span className="h-[3px] w-[3px] rounded-full bg-[#3d3d52]" />
-        <Link
-          to="/terms"
-          className="text-[0.76rem] text-[#52526a] no-underline hover:text-[#9292b0] transition-colors"
-        >
-          Terms
-        </Link>
-        <span className="h-[3px] w-[3px] rounded-full bg-[#3d3d52]" />
-        <span className="text-[0.76rem] text-[#3d3d52]">© 2025 NextWatch</span>
+      <footer className="relative z-[1] flex flex-col items-center justify-center gap-1.5 border-t border-white/[0.06] py-5 mt-4">
+        <div className="flex items-center gap-2.5">
+          <Link
+            to="/privacy-policy"
+            className="text-[0.76rem] text-[#52526a] no-underline hover:text-[#9292b0] transition-colors"
+          >
+            Privacy Policy
+          </Link>
+          <span className="h-[3px] w-[3px] rounded-full bg-[#3d3d52]" />
+          <Link
+            to="/terms"
+            className="text-[0.76rem] text-[#52526a] no-underline hover:text-[#9292b0] transition-colors"
+          >
+            Terms
+          </Link>
+          <span className="h-[3px] w-[3px] rounded-full bg-[#3d3d52]" />
+          <span className="text-[0.76rem] text-[#3d3d52]">© 2025 NextWatch</span>
+        </div>
+        <span className="text-[0.68rem] text-[#3d3d52]">
+          This product uses the TMDB API but is not endorsed or certified by TMDB.
+        </span>
       </footer>
     </div>
   );

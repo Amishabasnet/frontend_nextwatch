@@ -3,3 +3,47 @@
 .auth-card--register {
   max-width: 440px;
 }
+
+
+.auth-input::-ms-reveal,
+.auth-input::-ms-clear {
+  display: none;
+}
+
+/* Password requirements checklist — only rendered when something is unmet */
+.auth-requirements {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+.auth-requirement {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #fca5a5;
+}
+.auth-requirement__icon {
+  flex-shrink: 0;
+  display: flex;
+}
+
+/* Confirm-password match indicator */
+.auth-match {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  margin-top: 4px;
+}
+.auth-match--ok {
+  color: #22c55e;
+}
+.auth-match--error {
+  color: #fca5a5;
+}

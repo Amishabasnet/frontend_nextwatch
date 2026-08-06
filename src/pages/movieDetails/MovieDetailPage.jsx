@@ -12,6 +12,7 @@ import {
   Users,
   Bookmark,
   BookmarkCheck,
+  Heart,
   Play,
   X,
   Loader2,
@@ -100,6 +101,7 @@ export default function MovieDetailsPage() {
   const [errorMsg, setErrorMsg]       = useState("");
   const [inWatchlist, setInWatchlist] = useState(false);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
 
   // Full rating panel state
@@ -134,10 +136,10 @@ export default function MovieDetailsPage() {
       const res = await getRatingsByMovie(id);
       const list = Array.isArray(res.data) ? res.data : (res.data?.ratings ?? []);
       // Find this user's rating
-      const userId = user?._id ?? user?.id;
-      const mine = list.find(
-        (r) => (r.userId ?? r.user?._id ?? r.user?.id) === userId
-      ) ?? null;
+      const userId = String(user?._id ?? user?.id ?? "");
+const mine = list.find(
+  (r) => String(r.userId ?? r.user?._id ?? r.user?.id ?? "") === userId
+) ?? null;
       setExistingRating(mine);
     } catch {
       // non-critical — user just can't see/edit their prior rating
@@ -150,7 +152,13 @@ export default function MovieDetailsPage() {
     try {
       const res = await getWatchlist();
       const items = Array.isArray(res.data) ? res.data : (res.data?.watchlist ?? []);
-      const inList = items.some((i) => (i.movieId ?? i._id ?? i.id) === id);
+      // Each entry looks like { id, movie: {_id, title, ...}, notes, priority, addedAt } —
+      // `entry.id` is the *watchlist entry's* own id, not the movie's. The movie id lives
+      // at entry.movie._id (or entry.movie itself if populate ever returns a raw id).
+      const inList = items.some((i) => {
+        const entryMovieId = i.movie?._id ?? i.movie?.id ?? i.movie ?? i.movieId;
+        return String(entryMovieId ?? "") === String(id);
+      });
       setInWatchlist(inList);
     } catch {
       // non-critical
@@ -201,34 +209,87 @@ export default function MovieDetailsPage() {
         await postWatchlist({ movieId: id });
         toast.success(`Added "${movie?.title}" to Watchlist`);
       }
-    } catch {
-      setInWatchlist(prev);
-      toast.error("Couldn't update Watchlist");
+    } catch (err) {
+      const status = err.response?.status;
+      const serverMessage = err.response?.data?.message;
+
+      if (!prev && status === 409) {
+        // Backend says it's already on the watchlist — our local
+        // `inWatchlist` state was just stale (e.g. added in a previous
+        // session), not a real failure. Correct it instead of erroring.
+        setInWatchlist(true);
+        toast("Already on your Watchlist", { icon: "📌", theme: "dark" });
+      } else if (prev && status === 404) {
+        // Tried to remove something already gone — treat as success.
+        setInWatchlist(false);
+        toast("Already removed from Watchlist", { icon: "🗑️", theme: "dark" });
+      } else {
+        setInWatchlist(prev);
+        toast.error(serverMessage ?? "Couldn't update Watchlist");
+      }
     } finally {
       setWatchlistLoading(false);
     }
   };
+
+  const handleToggleFavorite = async () => {
+    if (favoriteLoading) return;
+    setFavoriteLoading(true);
+    const wasFavorite = !!existingRating?.liked;
+    try {
+      let saved;
+      if (existingRating) {
+        const res = await putRating(existingRating._id ?? existingRating.id, {
+          liked: !wasFavorite,
+          disliked: false,
+        });
+        saved = res.data ?? { ...existingRating, liked: !wasFavorite, disliked: false };
+      } else {
+        // No rating yet — create a record that only carries the favorite
+        // flag. We deliberately do NOT set a star `rating` here so this
+        // doesn't get mistaken for a submitted review.
+        const res = await postRating({ movieId: id, liked: true });
+        saved = res.data ?? { movieId: id, liked: true, rating: null };
+      }
+      setExistingRating(saved);
+      toast.success(
+        wasFavorite ? `Removed "${movie?.title}" from Favorites` : `Added "${movie?.title}" to Favorites`
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.message ?? "Couldn't update favorite.");
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
+
+  // A Rating document may exist purely to hold the favorite flag (no star
+  // score yet). Only treat it as an actual submitted review once `rating`
+  // is set — that's what should gate the "already rated" guard below.
+  const hasSubmittedRating = !!existingRating && existingRating.rating != null;
 
   const handleSubmitRating = useCallback(async (formData) => {
     const { stars, sentiment, feedback } = formData;
     setRatingStatus("submitting");
     try {
       let saved;
-      if (existingRating && !isEditing) {
+      if (hasSubmittedRating && !isEditing) {
         // Shouldn't happen, but guard anyway
         return;
       }
       if (existingRating) {
-        // Update
+        // Update the existing document (covers both editing a real rating,
+        // and attaching a star score to a favorite-only record).
         const res = await putRating(existingRating._id ?? existingRating.id, {
           rating: stars, sentiment, feedback, movieId: id,
         });
-        saved = res.data?.rating ?? res.data ?? { ...existingRating, rating: stars, sentiment, feedback };
+        // res.data is already the rating object (api.js unwraps the envelope) —
+        // do NOT read res.data.rating, that's just the numeric score field.
+        saved = res.data ?? { ...existingRating, rating: stars, sentiment, feedback };
         toast.success("Rating updated!");
       } else {
         // Create
         const res = await postRating({ movieId: id, rating: stars, sentiment, feedback });
-        saved = res.data?.rating ?? res.data ?? { rating: stars, sentiment, feedback };
+        saved = res.data ?? { rating: stars, sentiment, feedback };
         toast.success("Rating submitted!");
       }
       setExistingRating(saved);
@@ -246,7 +307,7 @@ export default function MovieDetailsPage() {
     } finally {
       setRatingStatus("idle");
     }
-  }, [existingRating, isEditing, id, user]);
+  }, [existingRating, isEditing, hasSubmittedRating, id, user]);
 
   const handleDeleteRating = useCallback(async () => {
     if (!existingRating) return;
@@ -327,6 +388,9 @@ export default function MovieDetailsPage() {
             inWatchlist={inWatchlist}
             watchlistLoading={watchlistLoading}
             onWatchlist={handleWatchlist}
+            isFavorite={!!existingRating?.liked}
+            favoriteLoading={favoriteLoading}
+            onToggleFavorite={handleToggleFavorite}
             embedUrl={embedUrl}
             trailerOpen={trailerOpen}
             setTrailerOpen={setTrailerOpen}
@@ -371,6 +435,7 @@ export default function MovieDetailsPage() {
 
 function MovieContent({
   movie, inWatchlist, watchlistLoading, onWatchlist,
+  isFavorite, favoriteLoading, onToggleFavorite,
   embedUrl, setTrailerOpen,
   existingRating, ratingStatus, isEditing, setIsEditing,
   onSubmitRating, onDeleteRating,
@@ -471,6 +536,22 @@ function MovieContent({
               {inWatchlist ? "Saved to Watchlist" : "Add to Watchlist"}
             </button>
 
+            <button
+              type="button"
+              className={`md-favorite-btn ${isFavorite ? "md-favorite-btn--active" : ""}`}
+              onClick={onToggleFavorite}
+              disabled={favoriteLoading}
+              aria-pressed={isFavorite}
+              title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+            >
+              {favoriteLoading ? (
+                <Loader2 size={15} strokeWidth={2} className="md-spin" />
+              ) : (
+                <Heart size={15} strokeWidth={2} fill={isFavorite ? "currentColor" : "none"} />
+              )}
+              {isFavorite ? "Favorited" : "Favorite"}
+            </button>
+
             {embedUrl && (
               <button
                 type="button"
@@ -554,6 +635,7 @@ function MovieContent({
         {/* Full Rating Panel */}
         <RatingPanel
           existingRating={existingRating}
+          hasSubmittedRating={!!existingRating && existingRating.rating != null}
           ratingStatus={ratingStatus}
           isEditing={isEditing}
           setIsEditing={setIsEditing}
@@ -570,8 +652,10 @@ const SENTIMENTS = [
   { value: "dislike", label: "Dislike", Icon: ThumbsDown },
 ];
 
-function RatingPanel({ existingRating, ratingStatus, isEditing, setIsEditing, onSubmit, onDelete }) {
-  const hasRating  = !!existingRating;
+function RatingPanel({ existingRating, hasSubmittedRating, ratingStatus, isEditing, setIsEditing, onSubmit, onDelete }) {
+  // A favorite-only Rating document (liked/disliked set, no star score yet)
+  // should NOT render as "Your Rating" — only a real submitted score should.
+  const hasRating  = hasSubmittedRating;
   
   const isBusy     = ratingStatus === "submitting" || ratingStatus === "deleting";
 

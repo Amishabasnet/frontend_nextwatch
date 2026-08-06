@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Clapperboard, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Clapperboard, Loader2, Check, X } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
 import "../login/LoginPage.css";
@@ -19,6 +19,19 @@ function getPasswordStrength(pw) {
   return              { level: 4, label: "Strong", key: "strong" };
 }
 
+// Each requirement's `met` is evaluated against the current password so we
+// can render only the ones that still need attention.
+function getPasswordRequirements(pw) {
+  return [
+    { key: "length", label: "At least 8 characters", met: pw.length >= 8 },
+    { key: "upper", label: "One uppercase letter", met: /[A-Z]/.test(pw) },
+    { key: "number", label: "One number", met: /[0-9]/.test(pw) },
+    { key: "symbol", label: "One special character", met: /[^A-Za-z0-9]/.test(pw) },
+  ];
+}
+
+const PHONE_REGEX = /^[+]?[\d\s()-]{7,15}$/;
+
 export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -26,6 +39,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({
     username: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
   });
@@ -35,6 +49,10 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState({});
 
   const strength = getPasswordStrength(form.password);
+  const requirements = getPasswordRequirements(form.password);
+  const unmetRequirements = requirements.filter((r) => !r.met);
+  const passwordsMatch = form.confirmPassword.length > 0 && form.password === form.confirmPassword;
+  const passwordsMismatch = form.confirmPassword.length > 0 && form.password !== form.confirmPassword;
 
   const validate = () => {
     const errs = {};
@@ -42,12 +60,25 @@ export default function RegisterPage() {
     else if (form.username.trim().length < 3) errs.username = "Must be at least 3 characters.";
     if (!form.email.trim()) errs.email = "Email is required.";
     else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = "Enter a valid email.";
+    if (form.phone.trim() && !PHONE_REGEX.test(form.phone.trim())) {
+      errs.phone = "Enter a valid phone number.";
+    }
     if (!form.password) errs.password = "Password is required.";
-    else if (form.password.length < 8) errs.password = "Must be at least 8 characters.";
+    else if (unmetRequirements.length) errs.password = "Password doesn't meet all requirements.";
     if (!form.confirmPassword) errs.confirmPassword = "Please confirm your password.";
     else if (form.password !== form.confirmPassword) errs.confirmPassword = "Passwords don't match.";
     return errs;
   };
+
+  // Drives whether the submit button is clickable — mirrors validate() but
+  // recalculated on every render so the button enables the instant the form
+  // becomes valid, without waiting for a submit attempt.
+  const isFormValid =
+    form.username.trim().length >= 3 &&
+    /\S+@\S+\.\S+/.test(form.email) &&
+    (!form.phone.trim() || PHONE_REGEX.test(form.phone.trim())) &&
+    unmetRequirements.length === 0 &&
+    passwordsMatch;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -64,6 +95,7 @@ export default function RegisterPage() {
     const result = await register({
       username: form.username.trim(),
       email: form.email.trim(),
+      phone: form.phone.trim(),
       password: form.password,
     });
     setIsLoading(false);
@@ -73,6 +105,10 @@ export default function RegisterPage() {
       navigate("/login", { replace: true, state: {
         registeredEmail: form.email.trim(),
       }, });
+    } else {
+      const message = result.error || "Registration failed. Please try again.";
+      setErrors((prev) => ({ ...prev, server: message }));
+      toast.error(message);
     }
   };
 
@@ -129,6 +165,22 @@ export default function RegisterPage() {
             {errors.email && <span className="auth-error">{errors.email}</span>}
           </div>
 
+          {/* Phone */}
+          <div className="auth-field">
+            <label htmlFor="phone" className="auth-label">Phone number <span style={{ color: "#6b6b8a", fontWeight: 400 }}></span></label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              autoComplete="tel"
+              value={form.phone}
+              onChange={handleChange}
+              placeholder="+1 234 567 8900"
+              className={`auth-input${errors.phone ? " auth-input--error" : ""}`}
+            />
+            {errors.phone && <span className="auth-error">{errors.phone}</span>}
+          </div>
+
           {/* Password */}
           <div className="auth-field">
             <label htmlFor="password" className="auth-label">Password</label>
@@ -168,6 +220,18 @@ export default function RegisterPage() {
                 </span>
               </>
             )}
+            {/* Requirements checklist — only shows the ones not yet met, and
+                disappears entirely once the password satisfies all of them */}
+            {form.password && unmetRequirements.length > 0 && (
+              <div className="auth-requirements">
+                {unmetRequirements.map((req) => (
+                  <span key={req.key} className="auth-requirement">
+                    <X size={12} className="auth-requirement__icon" />
+                    {req.label}
+                  </span>
+                ))}
+              </div>
+            )}
             {errors.password && <span className="auth-error">{errors.password}</span>}
           </div>
 
@@ -194,12 +258,26 @@ export default function RegisterPage() {
                 {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            {/* Live match feedback — only appears once the user has typed
+                something into confirm password */}
+            {passwordsMatch && (
+              <span className="auth-match auth-match--ok">
+                <Check size={13} />
+                Passwords match
+              </span>
+            )}
+            {!errors.confirmPassword && passwordsMismatch && (
+              <span className="auth-match auth-match--error">
+                <X size={13} />
+                Passwords don't match
+              </span>
+            )}
             {errors.confirmPassword && (
               <span className="auth-error">{errors.confirmPassword}</span>
             )}
           </div>
 
-          <button type="submit" className="auth-btn" disabled={isLoading}>
+          <button type="submit" className="auth-btn" disabled={isLoading || !isFormValid}>
             {isLoading ? (
               <>
                 <Loader2 size={16} className="auth-btn__spinner" />
