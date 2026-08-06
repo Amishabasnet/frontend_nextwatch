@@ -18,6 +18,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import BackButton from "../../components/BackButton";
 import { putConsent } from "../../services/api";
 import "./ConsentPage.css";
 
@@ -135,6 +136,8 @@ export default function ConsentPage() {
       </nav>
 
       <main className="consent-main">
+        <BackButton />
+
         <div className="consent-card">
             {/* Header */}
             <div className="consent-header">
