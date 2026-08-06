@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ArrowRight, Heart, X, Shield, CheckCircle2, Loader2 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import BackButton from "../../components/BackButton";
 import { getPreferences, putPreferences } from "../../services/api";
 import GenreBadge from "../../components/GenreBadge";
 import "./PreferencesPage.css";
@@ -116,6 +117,7 @@ export default function PreferencesPage() {
 
   return (
     <div className="preferences-root">
+      <BackButton fallback="/consent" />
       <div className="preferences-top">
         <div className="preferences-heading">
           <p className="preferences-eyebrow">Your Preferences</p>

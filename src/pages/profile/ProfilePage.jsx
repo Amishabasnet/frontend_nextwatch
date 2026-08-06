@@ -31,6 +31,7 @@ import {
   Eye,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import BackButton from "../../components/BackButton";
 import api, {
   getPreferences,
   getMoods,
@@ -866,6 +867,8 @@ export default function ProfilePage() {
 
       {/* ── main ── */}
       <main className="pf-main">
+        <BackButton />
+
 
         {/* ── hero / identity card ── */}
         <div className="pf-hero-card">

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { getMovies, postWatchlist, deleteWatchlist, getWatchlist } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
+import BackButton from "../../components/BackButton";
 import GenreBadge from "../../components/GenreBadge";
 import "./MoviesPage.css";
 
@@ -203,6 +204,8 @@ export default function MoviesPage() {
       </nav>
 
       <main className="mv-main">
+        <BackButton />
+
         {/* Header */}
         <div className="mv-page-header">
           <div>
