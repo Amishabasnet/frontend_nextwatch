@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, Clapperboard, Loader2 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
-import BackButton from "../../components/BackButton";
 import { toast } from "react-toastify";
 import "./LoginPage.css";
 
@@ -57,7 +56,6 @@ export default function LoginPage() {
       <div className="auth-blob auth-blob--2" />
 
       <div className="auth-card">
-        <BackButton fallback="/" />
         {/* Logo */}
         <Link to="/" className="auth-logo">
           <Clapperboard size={22} className="auth-logo__icon" />

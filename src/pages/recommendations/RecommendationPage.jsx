@@ -4,11 +4,11 @@ import { toast } from "react-toastify";
 import {
   Clapperboard, Sparkles, RefreshCw, Star, Bookmark, BookmarkCheck,
   Eye, HelpCircle, X, AlertCircle, Compass, Loader2, SmilePlus,
-  LogOut, TrendingUp,
+  LogOut, TrendingUp, ArrowLeft,
 } from "lucide-react";
 import { getRecommendations, postWatchlist, deleteWatchlist, getWatchlist, searchMovies } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
-import BackButton from "../../components/BackButton";
+import "../../components/BackButton/BackButton.css";
 import "./RecommendationPage.css";
 
 const MOODS = [
@@ -261,7 +261,10 @@ export default function RecommendationsPage() {
       </nav>
 
       <main className="recs-main">
-        <BackButton />
+        <button type="button" className="bb-back-btn" onClick={() => navigate("/dashboard")}>
+          <ArrowLeft size={15} strokeWidth={2} />
+          Back
+        </button>
 
         {/* Page header */}
         <div className="recs-page-header">

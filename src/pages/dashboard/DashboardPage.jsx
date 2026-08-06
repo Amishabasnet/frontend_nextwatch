@@ -12,7 +12,6 @@ import {
   postWatchlist, deleteWatchlist, getWatchlist,
 } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
-import BackButton from "../../components/BackButton";
 import MoodBadge, { MOOD_CONFIG } from "../../components/MoodBadge";
 import GenreBadge from "../../components/GenreBadge";
 import MovieSection                    from "../../components/MovieSelection";
@@ -456,9 +455,6 @@ export default function DashboardPage() {
       </nav>
 
       <main className="relative z-[1] flex-1 w-full max-w-[1440px] mx-auto px-5 sm:px-8 py-8 space-y-10">
-        <BackButton />
-
-
         {/* Search bar + side filter panel */}
         <section className="dash-section relative z-30" style={{ animationDelay: "0ms" }}>
           <div className="flex items-stretch gap-2 relative">
