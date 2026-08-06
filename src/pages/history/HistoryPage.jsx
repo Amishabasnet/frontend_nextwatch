@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { getHistory } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
+import BackButton from "../../components/BackButton";
 import "./HistoryPage.css";
 
 function normalizeItem(raw) {
@@ -114,6 +115,8 @@ export default function HistoryPage() {
       </nav>
 
       <main className="hy-main">
+        <BackButton />
+
         <div className="hy-page-header">
           <div>
             <p className="hy-eyebrow"><Clock size={13} strokeWidth={2} /> Library</p>

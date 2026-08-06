@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { getRecommendations, postWatchlist, deleteWatchlist, getWatchlist, searchMovies } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
+import BackButton from "../../components/BackButton";
 import "./RecommendationPage.css";
 
 const MOODS = [
@@ -260,6 +261,8 @@ export default function RecommendationsPage() {
       </nav>
 
       <main className="recs-main">
+        <BackButton />
+
         {/* Page header */}
         <div className="recs-page-header">
           <div>

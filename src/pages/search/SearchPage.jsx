@@ -27,6 +27,7 @@ import api, {
   getWatchlist,
 } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
+import BackButton from "../../components/BackButton";
 import GenreBadge from "../../components/GenreBadge";
 import "./SearchPage.css";
 
@@ -290,6 +291,8 @@ export default function SearchPage() {
       </nav>
 
       <main className="sp-main">
+        <BackButton />
+
         {/* Page header */}
         <div className="sp-page-header">
           <div>

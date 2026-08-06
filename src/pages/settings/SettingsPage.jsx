@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import api, { putConsent, deleteHistory } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
+import BackButton from "../../components/BackButton";
 import "./SettingsPage.css";
 
 function getInitials(name = "") {
@@ -314,6 +315,8 @@ export default function SettingsPage() {
 
       {/* ── main ── */}
       <main className="st-main">
+        <BackButton />
+
 
         {/* page header */}
         <div className="st-page-header">

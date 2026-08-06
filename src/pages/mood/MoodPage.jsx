@@ -19,6 +19,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import BackButton from "../../components/BackButton";
 import { postMood, getMoods, getLatestMood } from "../../services/api";
 
 const MOODS = [
@@ -174,7 +175,10 @@ export default function MoodPage() {
         </div>
       </nav>
 
-      <main className="relative z-[1] flex flex-1 items-start justify-center px-5 py-10">
+      <main className="relative z-[1] flex flex-1 flex-col items-center px-5 py-10">
+        <div className="w-full max-w-[680px]">
+          <BackButton />
+        </div>
         {isLoading ? (
           <LoadingSkeleton />
         ) : !user?.id ? (
