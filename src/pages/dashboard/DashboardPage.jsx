@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import {
   getLatestMood, getPreferences, getHistory,
-  getRecommendations, getMovies, searchMovies,
+  getRecommendations, getMovies, getTopRatedMovies, searchMovies,
   postWatchlist, deleteWatchlist, getWatchlist,
 } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
@@ -21,6 +21,9 @@ const DASH_GENRES = [
   "Documentary", "Drama", "Fantasy", "Horror", "Mystery",
   "Romance", "Sci-Fi", "Thriller", "Western",
 ];
+
+// Used to fill out genre rows when the user hasn't picked favourite genres yet.
+const DEFAULT_GENRE_ROWS = ["Action", "Comedy", "Drama", "Thriller", "Sci-Fi", "Horror"];
 
 const RATING_OPTIONS = [
   { value: "", label: "Any rating" },
@@ -168,6 +171,8 @@ export default function DashboardPage() {
   const [preferences, setPreferences] = useState({ favoriteGenres: [], dislikedGenres: [] });
   const [history, setHistory]         = useState([]);
   const [movies, setMovies]           = useState([]);
+  const [topRated, setTopRated]       = useState([]);
+  const [genreRows, setGenreRows]     = useState([]); // [{ genre, movies }]
   const [loading, setLoading]         = useState(true);
   const [watchlist, setWatchlist]     = useState(new Set());
 
@@ -282,6 +287,33 @@ export default function DashboardPage() {
       if (didCancel) return;
       if (movRes) setMovies(normalizeMovieList(movRes.data));
 
+      // Netflix/Prime-style rows: a platform-wide Top 10, then one row per
+      // genre (user's favourites first, padded out with defaults).
+      const genresForRows = Array.from(
+        new Set([...favGenres, ...DEFAULT_GENRE_ROWS])
+      ).slice(0, 6);
+
+      const [topRatedRes, ...genreResList] = await Promise.allSettled([
+        getTopRatedMovies({ limit: 10 }),
+        ...genresForRows.map((g) => getMovies({ genre: g, limit: 10, sort: "rating" })),
+      ]);
+
+      if (didCancel) return;
+
+      if (topRatedRes.status === "fulfilled") {
+        setTopRated(normalizeMovieList(topRatedRes.value.data));
+      }
+
+      const rows = genresForRows
+        .map((genre, i) => {
+          const res = genreResList[i];
+          if (res.status !== "fulfilled") return null;
+          const list = normalizeMovieList(res.value.data);
+          return list.length > 0 ? { genre, movies: list } : null;
+        })
+        .filter(Boolean);
+      setGenreRows(rows);
+
       if (!didCancel) setLoading(false);
     };
 
@@ -346,7 +378,7 @@ export default function DashboardPage() {
   const favoriteGenres = preferences?.favoriteGenres ?? [];
 
   const hasMoodSection    = loading || latestMood?.mood || recs.moodBased.length > 0;
-  const hasHistorySection = loading || recs.historyBased.length > 0;
+  const hasTopRatedSection = loading || topRated.length > 0;
   const hasRecentSection  = loading || history.length > 0;
 
   return (
@@ -709,16 +741,16 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {hasHistorySection && (
+        {hasTopRatedSection && (
           <section className="dash-section" style={{ animationDelay: "165ms" }}>
             <MovieSection
-              title="Based on Your Viewing History"
-              subtitle="Because you enjoyed titles like these"
+              title="Top 10 Movies"
+              subtitle="The highest-rated titles on NextWatch right now"
               icon={ListChecks}
               iconColor="#34d399"
-              movies={recs.historyBased}
+              movies={topRated}
               loading={loading}
-              emptyMessage="Watch a few movies and we'll build history-based picks for you."
+              emptyMessage="Top-rated movies will appear here soon."
               onAddToWatchlist={handleAddToWatchlist}
               onViewDetails={handleViewDetails}
               watchlist={watchlist}
@@ -726,7 +758,28 @@ export default function DashboardPage() {
           </section>
         )}
 
-        <section className="dash-section" style={{ animationDelay: "220ms" }}>
+        {genreRows.map(({ genre, movies: genreMovies }, i) => (
+          <section
+            className="dash-section"
+            key={genre}
+            style={{ animationDelay: `${200 + i * 55}ms` }}
+          >
+            <MovieSection
+              title={`${genre} Movies`}
+              subtitle={`Top picks in ${genre}`}
+              icon={Clapperboard}
+              iconColor="#f472b6"
+              movies={genreMovies}
+              loading={loading}
+              emptyMessage={`No ${genre} movies available right now.`}
+              onAddToWatchlist={handleAddToWatchlist}
+              onViewDetails={handleViewDetails}
+              watchlist={watchlist}
+            />
+          </section>
+        ))}
+
+        <section className="dash-section" style={{ animationDelay: "550ms" }}>
           <MovieSection
             title="Trending Now"
             subtitle="What everyone is watching this week"
@@ -742,7 +795,7 @@ export default function DashboardPage() {
         </section>
 
         {hasRecentSection && (
-          <section className="dash-section" style={{ animationDelay: "275ms" }}>
+          <section className="dash-section" style={{ animationDelay: "605ms" }}>
             <MovieSection
               title="Recently Viewed"
               subtitle="Pick up where you left off"
