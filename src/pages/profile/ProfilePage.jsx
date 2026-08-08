@@ -32,6 +32,15 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Smile,
+  Frown,
+  Leaf,
+  PartyPopper,
+  Meh,
+  Ghost,
+  Flame,
+  Hourglass,
+  HelpCircle,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import BackButton from "../../components/BackButton";
@@ -120,13 +129,20 @@ function getInitials(name = "") {
     .slice(0, 2) || "?";
 }
 
-function moodEmoji(mood = "") {
-  const map = {
-    happy: "😊", excited: "🤩", relaxed: "😌", sad: "😢",
-    anxious: "😟", bored: "😑", adventurous: "🧗", romantic: "💕",
-    scared: "😨", angry: "😠", nostalgic: "🥹", curious: "🤔",
-  };
-  return map[mood.toLowerCase()] ?? "🎭";
+const MOOD_ICON_MAP = {
+  happy:     { icon: Smile,       color: "#fbbf24" },
+  sad:       { icon: Frown,       color: "#60a5fa" },
+  relaxed:   { icon: Leaf,        color: "#34d399" },
+  excited:   { icon: PartyPopper, color: "#fb923c" },
+  bored:     { icon: Meh,         color: "#94a3b8" },
+  romantic:  { icon: Heart,       color: "#fb7185" },
+  scared:    { icon: Ghost,       color: "#818cf8" },
+  motivated: { icon: Flame,       color: "#f97316" },
+  nostalgic: { icon: Hourglass,   color: "#c084fc" },
+};
+
+function moodIconMeta(mood = "") {
+  return MOOD_ICON_MAP[mood.toLowerCase()] ?? { icon: HelpCircle, color: "#9292b0" };
 }
 
 function formatDate(raw) {
@@ -185,9 +201,10 @@ function GenrePill({ genre, variant = "like" }) {
 }
 
 function MoodChip({ mood }) {
+  const { icon: Icon, color } = moodIconMeta(mood.mood ?? mood);
   return (
     <span className="pf-mood-chip">
-      <span className="pf-mood-emoji">{moodEmoji(mood.mood ?? mood)}</span>
+      <Icon size={14} strokeWidth={2} className="pf-mood-icon" style={{ color }} />
       <span className="pf-mood-label">{mood.mood ?? mood}</span>
       {mood.createdAt && (
         <span className="pf-mood-date">{formatDate(mood.createdAt)}</span>

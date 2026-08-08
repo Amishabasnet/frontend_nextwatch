@@ -55,6 +55,7 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   const totals = data?.totals ?? {};

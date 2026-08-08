@@ -5,22 +5,23 @@ import {
   Clapperboard, Sparkles, RefreshCw, Star, Bookmark, BookmarkCheck,
   Eye, HelpCircle, X, AlertCircle, Compass, Loader2, SmilePlus,
   LogOut, TrendingUp, ArrowLeft,
+  Smile, Frown, Leaf, PartyPopper, Meh, Heart, Ghost, Flame, Hourglass,
 } from "lucide-react";
-import { getRecommendations, postWatchlist, deleteWatchlist, getWatchlist, searchMovies } from "../../services/api";
+import { getRecommendations, postWatchlist, deleteWatchlist, getWatchlist, searchMovies, getMovieById } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import "../../components/BackButton/BackButton.css";
 import "./RecommendationPage.css";
 
 const MOODS = [
-  { label: "Happy",     emoji: "😄" },
-  { label: "Sad",       emoji: "😢" },
-  { label: "Excited",   emoji: "🤩" },
-  { label: "Relaxed",   emoji: "😌" },
-  { label: "Scared",    emoji: "😱" },
-  { label: "Romantic",  emoji: "❤️"  },
-  { label: "Motivated", emoji: "💪" },
-  { label: "Bored",     emoji: "😑" },
-  { label: "Nostalgic", emoji: "🕰️" },
+  { label: "Happy",     icon: Smile,       color: "#fbbf24" },
+  { label: "Sad",       icon: Frown,       color: "#60a5fa" },
+  { label: "Excited",   icon: PartyPopper, color: "#fb923c" },
+  { label: "Relaxed",   icon: Leaf,        color: "#34d399" },
+  { label: "Scared",    icon: Ghost,       color: "#818cf8" },
+  { label: "Romantic",  icon: Heart,       color: "#fb7185" },
+  { label: "Motivated", icon: Flame,       color: "#f97316" },
+  { label: "Bored",     icon: Meh,         color: "#94a3b8" },
+  { label: "Nostalgic", icon: Hourglass,   color: "#c084fc" },
 ];
 
 const MOOD_GENRE_MAP = {
@@ -99,6 +100,9 @@ export default function RecommendationsPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [watchlist, setWatchlist] = useState(new Set());
   const [activeMovie, setActiveMovie] = useState(null);
+  const [detailsMovie, setDetailsMovie] = useState(null);   // basic card data, shown immediately
+  const [detailsFull, setDetailsFull] = useState(null);     // full record once fetched
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const fetchByMood = useCallback(async (mood) => {
     setStatus("loading");
@@ -228,7 +232,20 @@ export default function RecommendationsPage() {
     }
   }, [watchlist]);
 
-  const handleViewDetails = useCallback((id) => navigate(`/movies/${id}`), [navigate]);
+  const handleViewDetails = useCallback(async (id) => {
+    const basic = items.find((m) => m.id === id) ?? null;
+    setDetailsMovie(basic);
+    setDetailsFull(null);
+    setDetailsLoading(true);
+    try {
+      const res = await getMovieById(id);
+      setDetailsFull(res.data);
+    } catch {
+      // keep showing the basic card data with an inline notice below
+    } finally {
+      setDetailsLoading(false);
+    }
+  }, [items]);
 
   const displayName = user?.username ?? user?.name ?? user?.email?.split("@")[0] ?? "there";
   const isLoading = authLoading || status === "loading";
@@ -294,14 +311,14 @@ export default function RecommendationsPage() {
         <div className="recs-mood-section">
           <p className="recs-mood-label">How are you feeling?</p>
           <div className="recs-mood-row">
-            {MOODS.map(({ label, emoji }) => (
+            {MOODS.map(({ label, icon: Icon, color }) => (
               <button
                 key={label}
                 type="button"
                 onClick={() => handleMoodSelect(label)}
                 className={`recs-mood-chip ${selectedMood === label ? "recs-mood-chip--active" : ""}`}
               >
-                <span className="recs-mood-emoji">{emoji}</span>
+                <Icon size={14} strokeWidth={2} className="recs-mood-icon" style={{ color }} />
                 <span>{label}</span>
               </button>
             ))}
@@ -348,6 +365,17 @@ export default function RecommendationsPage() {
 
       {activeMovie && (
         <WhyRecommendedModal movie={activeMovie} onClose={() => setActiveMovie(null)} />
+      )}
+
+      {detailsMovie && (
+        <MovieDetailsModal
+          basic={detailsMovie}
+          full={detailsFull}
+          loading={detailsLoading}
+          isInWatchlist={watchlist.has(detailsMovie.id)}
+          onAddToWatchlist={handleAddToWatchlist}
+          onClose={() => { setDetailsMovie(null); setDetailsFull(null); }}
+        />
       )}
     </div>
   );
@@ -436,6 +464,80 @@ function WhyRecommendedModal({ movie, onClose }) {
         )}
         <p className="recs-modal-reason">{movie.reason}</p>
         <button type="button" className="recs-modal-ok" onClick={onClose}>Got it</button>
+      </div>
+    </div>
+  );
+}
+
+function MovieDetailsModal({ basic, full, loading, isInWatchlist, onAddToWatchlist, onClose }) {
+  const [imgError, setImgError] = useState(false);
+  const movie = { ...basic, ...(full ?? {}) };
+  const title = movie.title ?? "Untitled";
+  const posterUrl = movie.posterUrl ?? basic.posterUrl ?? null;
+  const genres = movie.genres ?? [];
+  const rating = Number(movie.rating ?? movie.averageScore ?? basic.rating ?? 0) || 0;
+  const releaseYear = movie.releaseYear ?? basic.releaseYear ?? null;
+  const contentType = movie.contentType ?? basic.contentType ?? null;
+  const hasPoster = posterUrl && !imgError;
+
+  return (
+    <div className="recs-modal-backdrop" onClick={onClose}>
+      <div className="recs-modal recs-details-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="recs-modal-close" onClick={onClose}><X size={16} strokeWidth={2} /></button>
+
+        <div className="recs-details-body">
+          <div className="recs-details-poster">
+            {hasPoster ? (
+              <img src={posterUrl} alt={title} onError={() => setImgError(true)} />
+            ) : (
+              <div className="recs-details-poster-fallback" style={{ background: titleToGradient(title) }}>
+                <span>{title.charAt(0).toUpperCase()}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="recs-details-info">
+            <h2 className="recs-modal-title" style={{ textAlign: "left" }}>{title}</h2>
+
+            <div className="recs-details-meta">
+              {rating > 0 && (
+                <span className="recs-details-meta-rating">
+                  <Star size={12} strokeWidth={0} fill="#fbbf24" /> {rating.toFixed(1)}
+                </span>
+              )}
+              {releaseYear && <span>{releaseYear}</span>}
+              {contentType && <span style={{ textTransform: "capitalize" }}>{contentType}</span>}
+            </div>
+
+            {genres.length > 0 && (
+              <div className="recs-genre-row">
+                {genres.map((g) => <span key={g} className="recs-genre-chip">{g}</span>)}
+              </div>
+            )}
+
+            {loading ? (
+              <p className="recs-details-desc recs-details-desc--loading">Loading description…</p>
+            ) : (
+              <p className="recs-details-desc">
+                {movie.description?.trim() || "No description available for this title yet."}
+              </p>
+            )}
+
+            <div className="recs-details-actions">
+              <button
+                type="button"
+                onClick={() => onAddToWatchlist(basic.id, title)}
+                className={`recs-btn recs-btn--watchlist ${isInWatchlist ? "is-saved" : ""}`}
+              >
+                {isInWatchlist ? <BookmarkCheck size={13} strokeWidth={2.5} /> : <Bookmark size={13} strokeWidth={2} />}
+                {isInWatchlist ? "Saved" : "Watchlist"}
+              </button>
+              <button type="button" className="recs-btn recs-btn--details" onClick={onClose}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

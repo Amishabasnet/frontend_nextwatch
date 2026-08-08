@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import {
   Clapperboard, TrendingUp, Clock, Sparkles,
   Star, SmilePlus, ListChecks, LogOut, Loader2, User, Settings,
-  Search, SlidersHorizontal, X, RotateCcw,
+  Search, SlidersHorizontal, X, RotateCcw, ShieldCheck,
 } from "lucide-react";
 import {
   getLatestMood, getPreferences, getHistory,
@@ -471,6 +471,14 @@ export default function DashboardPage() {
                 >
                   <Settings size={13} strokeWidth={2} /> Settings
                 </Link>
+                {user?.role === "admin" && (
+                  <Link to="/admin/dashboard" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, color: "#a78bfa", textDecoration: "none", fontSize: "0.82rem", fontWeight: 600 }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(167,139,250,0.08)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <ShieldCheck size={13} strokeWidth={2} /> Admin Panel
+                  </Link>
+                )}
                 <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "4px 0" }} />
                 <button type="button" onClick={logout} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, color: "#f87171", background: "transparent", border: "none", fontSize: "0.82rem", fontWeight: 600, width: "100%", cursor: "pointer" }}
                   onMouseEnter={e => e.currentTarget.style.background = "rgba(248,113,113,0.08)"}

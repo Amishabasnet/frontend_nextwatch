@@ -260,6 +260,7 @@ export default function AdminMoviesPage() {
     }
   }, [page, genreFilter]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   const visibleMovies = search.trim()
