@@ -5,6 +5,7 @@ import {
   Clapperboard,
   User,
   Mail,
+  Phone,
   Shield,
   Calendar,
   Globe,
@@ -547,21 +548,26 @@ function ContinueWatchingTab({ movies, loading, error, onRetry, onMarkWatched, o
 }
 
 /* ── Edit Profile modal ── */
-function EditProfileModal({ initialName, initialEmail, onClose, onSaved }) {
+function EditProfileModal({ initialName, initialEmail, initialPhone, onClose, onSaved }) {
   const [name, setName] = useState(initialName ?? "");
   const [email, setEmail] = useState(initialEmail ?? "");
+  const [phone, setPhone] = useState(initialPhone ?? "");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) { setFormError("Name cannot be empty."); return; }
+    if (phone.trim() && !/^[+]?[\d\s()-]{7,15}$/.test(phone.trim())) {
+      setFormError("Enter a valid phone number.");
+      return;
+    }
     setSaving(true);
     setFormError("");
     try {
-      await updateProfile({ name: name.trim(), email: email.trim() });
+      await updateProfile({ name: name.trim(), email: email.trim(), phone: phone.trim() });
       toast.success("Profile updated");
-      onSaved({ name: name.trim(), email: email.trim() });
+      onSaved({ name: name.trim(), email: email.trim(), phone: phone.trim() });
       onClose();
     } catch (err) {
       setFormError(err.response?.data?.message ?? "Couldn't update profile.");
@@ -601,6 +607,17 @@ function EditProfileModal({ initialName, initialEmail, onClose, onSaved }) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            className="w-full rounded-lg bg-[#0b0b0f] border border-white/[0.1] px-3 py-2 text-[0.85rem] text-[#eeeef5] focus:outline-none focus:border-[#7c3aed]/50"
+          />
+        </label>
+
+        <label className="block mb-4">
+          <span className="block text-[0.72rem] font-semibold text-[#9292b0] mb-1">Phone</span>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+977 98XXXXXXXX"
             className="w-full rounded-lg bg-[#0b0b0f] border border-white/[0.1] px-3 py-2 text-[0.85rem] text-[#eeeef5] focus:outline-none focus:border-[#7c3aed]/50"
           />
         </label>
@@ -1086,6 +1103,7 @@ export default function ProfilePage() {
               {errors.profile && <ErrorBanner message={errors.profile} />}
               <InfoRow icon={User}     label="Name"      value={profileData.name ?? profileData.username} loading={loading.profile} />
               <InfoRow icon={Mail}     label="Email"     value={profileData.email}    loading={loading.profile} />
+              <InfoRow icon={Phone}    label="Phone"     value={profileData.phone || "Not set"} loading={loading.profile} />
               <InfoRow icon={Calendar} label="Age group" value={ageGroup}             loading={loading.profile} />
               <InfoRow icon={Shield}   label="Role"      value={role}                 loading={loading.profile} />
               <button type="button" onClick={() => setEditOpen(true)} className="pf-card-cta" style={{ background: "none", border: "none", cursor: "pointer" }}>
@@ -1265,6 +1283,7 @@ export default function ProfilePage() {
         <EditProfileModal
           initialName={profileData.name ?? profileData.username ?? ""}
           initialEmail={profileData.email ?? ""}
+          initialPhone={profileData.phone ?? ""}
           onClose={() => setEditOpen(false)}
           onSaved={(updated) => {
             setProfile((p) => ({ ...(p ?? {}), ...updated }));
