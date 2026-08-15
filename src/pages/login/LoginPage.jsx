@@ -41,8 +41,9 @@ export default function LoginPage() {
     setIsLoading(false);
 
     if (result.success) {
+      const destination = result.user?.consentGiven === false ? "/consent" : from;
       toast.success("Welcome back!");
-      navigate(from, { replace: true });
+      navigate(destination, { replace: true });
     } else {
       toast.error(result.error || "Login failed.");
       setErrors({ server: result.error });
