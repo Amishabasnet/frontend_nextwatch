@@ -160,6 +160,7 @@ export const deleteUser = (userId) => api.delete(`/users/${userId}`);
 export const getAdminDashboard   = () => api.get("/admin/dashboard");
 export const getAdminUsers       = (params) => api.get("/admin/users", { params });
 export const getAdminUserById    = (id) => api.get(`/admin/users/${id}`);
+export const createAdminUser       = (payload) => api.post("/admin/users", payload);
 export const updateAdminUserRole   = (id, role)   => api.patch(`/admin/users/${id}/role`, { role });
 export const updateAdminUserStatus = (id, status) => api.patch(`/admin/users/${id}/status`, { status });
 export const deleteAdminUser       = (id) => api.delete(`/admin/users/${id}`);

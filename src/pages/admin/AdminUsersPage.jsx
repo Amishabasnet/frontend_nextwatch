@@ -2,14 +2,122 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
 import {
   Search, Users as UsersIcon, ShieldCheck, Shield, Ban, CheckCircle2,
-  Trash2, AlertCircle, ChevronLeft, ChevronRight,
+  Trash2, AlertCircle, ChevronLeft, ChevronRight, UserPlus, X, Check,
+  Loader2, Eye, EyeOff,
 } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import {
-  getAdminUsers, updateAdminUserRole, updateAdminUserStatus, deleteAdminUser,
+  getAdminUsers, createAdminUser, updateAdminUserRole, updateAdminUserStatus, deleteAdminUser,
 } from "../../services/api";
 import ConfirmDialog from "./ConfirmDialog";
 import "./Admin.css";
+
+const EMPTY_ADMIN_FORM = { name: "", email: "", phone: "", password: "" };
+const PHONE_REGEX = /^[+]?[\d\s()-]{7,15}$/;
+
+function CreateAdminModal({ onClose, onCreated }) {
+  const [form, setForm] = useState(EMPTY_ADMIN_FORM);
+  const [showPassword, setShowPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) { setFormError("Name is required."); return; }
+    if (!/\S+@\S+\.\S+/.test(form.email)) { setFormError("Enter a valid email."); return; }
+    if (form.phone.trim() && !PHONE_REGEX.test(form.phone.trim())) {
+      setFormError("Enter a valid phone number.");
+      return;
+    }
+    if (form.password.length < 6) { setFormError("Password must be at least 6 characters."); return; }
+
+    setSaving(true);
+    setFormError("");
+    try {
+      const res = await createAdminUser({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        password: form.password,
+      });
+      toast.success(`${res.data?.name ?? form.name} was created as an admin.`);
+      onCreated();
+      onClose();
+    } catch (err) {
+      setFormError(err.response?.data?.message ?? "Couldn't create admin.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="adm-modal-overlay" onClick={onClose} role="presentation">
+      <form className="adm-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+        <div className="adm-modal-header">
+          <h2 className="adm-modal-title">Create Admin Account</h2>
+          <button type="button" className="adm-modal-close" onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        {formError && (
+          <div className="adm-error"><AlertCircle size={14} /><span>{formError}</span></div>
+        )}
+
+        <label className="adm-field">
+          <span className="adm-field-label">Full name *</span>
+          <input className="adm-input" value={form.name} onChange={set("name")} placeholder="Jane Doe" />
+        </label>
+
+        <label className="adm-field">
+          <span className="adm-field-label">Email *</span>
+          <input className="adm-input" type="email" value={form.email} onChange={set("email")} placeholder="admin@example.com" />
+        </label>
+
+        <label className="adm-field">
+          <span className="adm-field-label">Phone (optional)</span>
+          <input className="adm-input" type="tel" value={form.phone} onChange={set("phone")} placeholder="+1 234 567 8900" />
+        </label>
+
+        <label className="adm-field">
+          <span className="adm-field-label">Temporary password *</span>
+          <div style={{ position: "relative" }}>
+            <input
+              className="adm-input"
+              type={showPassword ? "text" : "password"}
+              value={form.password}
+              onChange={set("password")}
+              placeholder="Min. 6 characters"
+              style={{ paddingRight: 36 }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              style={{
+                position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                background: "none", border: "none", color: "#6b6b8a", cursor: "pointer",
+                display: "flex", padding: 4,
+              }}
+            >
+              {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+        </label>
+
+        <div className="adm-modal-footer">
+          <button type="button" className="adm-btn adm-btn--ghost" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="submit" className="adm-btn adm-btn--primary" disabled={saving}>
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            Create admin
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
 
 function formatDate(raw) {
   if (!raw) return "—";
@@ -37,6 +145,7 @@ export default function AdminUsersPage() {
   const [busyIds, setBusyIds] = useState(new Set());
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,6 +219,13 @@ export default function AdminUsersPage() {
           <h1 className="adm-page-title">Manage Users</h1>
           <p className="adm-page-subtitle">{meta.total ?? users.length} registered accounts</p>
         </div>
+        <button
+          type="button"
+          className="adm-btn adm-btn--primary"
+          onClick={() => setCreateOpen(true)}
+        >
+          <UserPlus size={14} /> Add Admin
+        </button>
       </div>
 
       <div className="adm-panel">
@@ -259,6 +375,13 @@ export default function AdminUsersPage() {
           </div>
         )}
       </div>
+
+      {createOpen && (
+        <CreateAdminModal
+          onClose={() => setCreateOpen(false)}
+          onCreated={load}
+        />
+      )}
 
       {deleteTarget && (
         <ConfirmDialog
