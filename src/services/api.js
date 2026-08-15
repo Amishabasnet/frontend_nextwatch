@@ -41,7 +41,9 @@ api.interceptors.response.use(
       error.response?.status === 401 &&
       !originalRequest._retried &&
       !originalRequest.url?.includes("/auth/refresh") &&
-      !originalRequest.url?.includes("/auth/login")
+      !originalRequest.url?.includes("/auth/login") &&
+      !originalRequest.url?.includes("/auth/forgot-password") &&
+      !originalRequest.url?.includes("/auth/reset-password")
     ) {
       originalRequest._retried = true;
 
@@ -151,6 +153,8 @@ export const deleteRating      = (id)          => api.delete(`/ratings/${id}`);
 export const getProfile    = () => api.get("/auth/profile");
 export const updateProfile = (payload) => api.put("/auth/profile", payload);
 export const changePassword = (payload) => api.put("/auth/password", payload);
+export const forgotPassword = (email) => api.post("/auth/forgot-password", { email });
+export const resetPassword  = (token, password) => api.post("/auth/reset-password", { token, password });
 
 export const deleteUser = (userId) => api.delete(`/users/${userId}`);
 
