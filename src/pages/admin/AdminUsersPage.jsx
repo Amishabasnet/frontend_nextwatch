@@ -130,6 +130,15 @@ function getInitials(name = "") {
   return name.split(" ").map((w) => w[0] ?? "").join("").toUpperCase().slice(0, 2) || "?";
 }
 
+function formatScreenTime(minutes = 0) {
+  if (!minutes) return "0m";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
 export default function AdminUsersPage() {
   const { adminUser } = useOutletContext() ?? {};
   const currentUserId = adminUser?.id ?? adminUser?._id;
@@ -259,6 +268,7 @@ export default function AdminUsersPage() {
                 <th>User</th>
                 <th>Role</th>
                 <th>Status</th>
+                <th>Screen Time</th>
                 <th>Joined</th>
                 <th></th>
               </tr>
@@ -270,12 +280,13 @@ export default function AdminUsersPage() {
                     <td><div className="adm-skel" style={{ width: 180, height: 14 }} /></td>
                     <td><div className="adm-skel" style={{ width: 60, height: 14 }} /></td>
                     <td><div className="adm-skel" style={{ width: 60, height: 14 }} /></td>
+                    <td><div className="adm-skel" style={{ width: 70, height: 14 }} /></td>
                     <td><div className="adm-skel" style={{ width: 80, height: 14 }} /></td>
                     <td></td>
                   </tr>
                 ))
               ) : users.length === 0 ? (
-                <tr><td colSpan={5}><div className="adm-empty"><UsersIcon size={20} style={{ marginBottom: 6 }} /><div>No users found.</div></div></td></tr>
+                <tr><td colSpan={6}><div className="adm-empty"><UsersIcon size={20} style={{ marginBottom: 6 }} /><div>No users found.</div></div></td></tr>
               ) : (
                 users.map((u) => {
                   const isSelf = String(u.id) === String(currentUserId);
@@ -310,6 +321,12 @@ export default function AdminUsersPage() {
                         <span className={`adm-badge adm-badge--${u.status === "suspended" ? "suspended" : "active"}`}>
                           {u.status === "suspended" ? "Suspended" : "Active"}
                         </span>
+                      </td>
+                      <td className="adm-cell-sub">
+                        {formatScreenTime(u.screenTimeMinutes)}
+                        {u.moviesWatched > 0 && (
+                          <span style={{ color: "#6b6b8a" }}> · {u.moviesWatched} title{u.moviesWatched === 1 ? "" : "s"}</span>
+                        )}
                       </td>
                       <td className="adm-cell-sub">{formatDate(u.createdAt)}</td>
                       <td>

@@ -23,7 +23,7 @@ const MOODS = [
 const EMPTY_FORM = {
   title: "", description: "", genres: [], contentType: "movie",
   rating: "", releaseYear: "", language: "en", posterUrl: "",
-  trailerUrl: "", imdbId: "", averageScore: "", moods: [],
+  trailerUrl: "", imdbId: "", averageScore: "", runtimeMinutes: "", moods: [],
 };
 
 function normalizeMovie(raw) {
@@ -40,6 +40,7 @@ function normalizeMovie(raw) {
     trailerUrl: raw.trailerUrl ?? "",
     imdbId: raw.imdbId ?? "",
     averageScore: raw.averageScore ?? 0,
+    runtimeMinutes: raw.runtimeMinutes ?? 0,
     moods: Array.isArray(raw.moods) ? raw.moods : [],
     description: raw.description ?? "",
   };
@@ -61,6 +62,7 @@ function MovieFormModal({ initial, onClose, onSaved }) {
           trailerUrl: initial.trailerUrl ?? "",
           imdbId: initial.imdbId ?? "",
           averageScore: initial.averageScore ?? "",
+          runtimeMinutes: initial.runtimeMinutes ?? "",
           moods: initial.moods ?? [],
         }
       : EMPTY_FORM
@@ -94,6 +96,7 @@ function MovieFormModal({ initial, onClose, onSaved }) {
         trailerUrl: form.trailerUrl.trim(),
         imdbId: form.imdbId.trim() || undefined,
         averageScore: form.averageScore !== "" ? Number(form.averageScore) : undefined,
+        runtimeMinutes: form.runtimeMinutes !== "" ? Number(form.runtimeMinutes) : undefined,
         moods: form.moods,
       };
 
@@ -196,10 +199,16 @@ function MovieFormModal({ initial, onClose, onSaved }) {
           </label>
         </div>
 
-        <label className="adm-field">
-          <span className="adm-field-label">Average score (0–10)</span>
-          <input className="adm-input" type="number" min="0" max="10" step="0.1" value={form.averageScore} onChange={set("averageScore")} />
-        </label>
+        <div className="adm-field-row">
+          <label className="adm-field">
+            <span className="adm-field-label">Average score (0–10)</span>
+            <input className="adm-input" type="number" min="0" max="10" step="0.1" value={form.averageScore} onChange={set("averageScore")} />
+          </label>
+          <label className="adm-field">
+            <span className="adm-field-label">Runtime (minutes)</span>
+            <input className="adm-input" type="number" min="0" max="1000" step="1" value={form.runtimeMinutes} onChange={set("runtimeMinutes")} placeholder="e.g. 118" />
+          </label>
+        </div>
 
         <div className="adm-field">
           <span className="adm-field-label">Moods</span>
@@ -329,6 +338,7 @@ export default function AdminMoviesPage() {
                 <th>Type</th>
                 <th>Year</th>
                 <th>Score</th>
+                <th>Runtime</th>
                 <th></th>
               </tr>
             </thead>
@@ -341,11 +351,12 @@ export default function AdminMoviesPage() {
                     <td><div className="adm-skel" style={{ width: 60, height: 14 }} /></td>
                     <td><div className="adm-skel" style={{ width: 40, height: 14 }} /></td>
                     <td><div className="adm-skel" style={{ width: 40, height: 14 }} /></td>
+                    <td><div className="adm-skel" style={{ width: 40, height: 14 }} /></td>
                     <td></td>
                   </tr>
                 ))
               ) : visibleMovies.length === 0 ? (
-                <tr><td colSpan={6}><div className="adm-empty"><Film size={20} style={{ marginBottom: 6 }} /><div>No movies found.</div></div></td></tr>
+                <tr><td colSpan={7}><div className="adm-empty"><Film size={20} style={{ marginBottom: 6 }} /><div>No movies found.</div></div></td></tr>
               ) : (
                 visibleMovies.map((m) => (
                   <tr key={m.id}>
@@ -365,6 +376,7 @@ export default function AdminMoviesPage() {
                     <td className="adm-cell-sub">{m.contentType}</td>
                     <td className="adm-cell-sub">{m.releaseYear ?? "—"}</td>
                     <td className="adm-cell-sub">{m.averageScore ? m.averageScore.toFixed?.(1) ?? m.averageScore : "—"}</td>
+                    <td className="adm-cell-sub">{m.runtimeMinutes ? `${m.runtimeMinutes}m` : "—"}</td>
                     <td>
                       <div className="adm-table-actions">
                         <button
