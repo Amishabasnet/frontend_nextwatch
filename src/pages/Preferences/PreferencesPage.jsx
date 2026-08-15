@@ -102,6 +102,7 @@ export default function PreferencesPage() {
         excludedGenres: dislikedGenres,
       });
       toast.success("Preferences saved successfully.");
+      navigate("/dashboard", { replace: true });
     } catch {
       toast.error("Failed to save preferences. Please try again.");
     } finally {

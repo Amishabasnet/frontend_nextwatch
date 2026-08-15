@@ -41,6 +41,16 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(false);
   }, [persistToken]);
 
+  const updateUser = useCallback((nextUser) => {
+    setUser((prevUser) => {
+      const resolved = typeof nextUser === "function" ? nextUser(prevUser) : nextUser;
+      if (!resolved) return prevUser;
+
+      setRole(resolved.role ?? prevUser?.role ?? null);
+      return { ...(prevUser ?? {}), ...resolved };
+    });
+  }, []);
+
   // Listen for token refresh failures from the axios interceptor
   useEffect(() => {
     const handler = () => {
@@ -90,7 +100,7 @@ export function AuthProvider({ children }) {
         localStorage.setItem("nextwatch_refresh_token", data.data.refreshToken);
       }
       applyUserSession(data.data.token, data.data.user);
-      return { success: true };
+      return { success: true, user: data.data.user };
     } catch {
       return { success: false, error: "Network error. Please try again." };
     }
@@ -145,6 +155,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     getCurrentUser,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

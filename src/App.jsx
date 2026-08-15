@@ -7,6 +7,8 @@ import { AuthProvider } from "./context/AuthContext";
 import LandingPage         from "./pages/landing";
 import LoginPage           from "./pages/login";
 import RegisterPage        from "./pages/register";
+import ForgotPasswordPage  from "./pages/forgotPassword";
+import ResetPasswordPage   from "./pages/resetPassword";
 import ConsentPage         from "./pages/consent";
 import PreferencesPage     from "./pages/Preferences";
 import MoodPage            from "./pages/mood";
@@ -36,6 +38,8 @@ export default function App() {
         <Route path="/"         element={<LandingPage />} />
         <Route path="/login"    element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password"  element={<ResetPasswordPage />} />
         <Route path="/privacy-policy" element={<NotFoundPage title="Privacy Policy" message="This page is coming soon." />} />
         <Route path="/terms"          element={<NotFoundPage title="Terms of Service" message="This page is coming soon." />} />
 

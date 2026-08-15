@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   
@@ -19,15 +20,17 @@ import {
   Brain,
   Flame,
 } from "lucide-react";
+import { getMovies } from "../../services/api";
 
-const POSTERS = [
-  { title: "Neon Abyss", genre: "Sci-Fi", rating: 8.4, color: "#1a1040" },
-  { title: "Crimson Tide", genre: "Thriller", rating: 7.9, color: "#2d0a0a" },
-  { title: "Frost Point", genre: "Drama", rating: 8.1, color: "#0a1a2d" },
-  { title: "Echo Valley", genre: "Mystery", rating: 7.6, color: "#0d1a0d" },
-  { title: "Solar Drift", genre: "Adventure", rating: 8.7, color: "#1a1200" },
-  { title: "Hollow Moon", genre: "Horror", rating: 7.2, color: "#0d0d0d" },
-];
+const POSTER_GENRES = ["Sci-Fi", "Thriller", "Drama", "Mystery", "Adventure", "Horror"];
+const GENRE_FALLBACK_COLOR = {
+  "Sci-Fi": "#1a1040",
+  "Thriller": "#2d0a0a",
+  "Drama": "#0a1a2d",
+  "Mystery": "#0d1a0d",
+  "Adventure": "#1a1200",
+  "Horror": "#0d0d0d",
+};
 
 const MOODS = [
   { label: "Feel-Good",    icon: Smile, color: "#fbbf24" },
@@ -77,27 +80,97 @@ const PRIVACY_POINTS = [
   },
 ];
 
-function PosterCard({ poster, index }) {
+function PosterCard({ genre, movie, color }) {
+  const [imgError, setImgError] = useState(false);
+  const hasImage = movie?.posterUrl && !imgError;
+
   return (
     <div
       className="poster-card"
-      style={{
-        background: `linear-gradient(160deg, ${poster.color} 0%, #0a0a0f 100%)`,
-        animationDelay: `${index * 0.12}s`,
-      }}
+      style={!hasImage ? { background: `linear-gradient(160deg, ${color} 0%, #0a0a0f 100%)` } : undefined}
     >
-      <div className="poster-genre">{poster.genre}</div>
+      {hasImage && (
+        <img
+          key={movie.id ?? movie.posterUrl}
+          src={movie.posterUrl}
+          alt={movie.title}
+          className="poster-img poster-img--fade"
+          loading="lazy"
+          onError={() => setImgError(true)}
+        />
+      )}
+      <div className="poster-genre">{genre}</div>
       <div className="poster-bottom">
-        <span className="poster-title">{poster.title}</span>
+        <span className="poster-title">{movie?.title ?? genre}</span>
         <span className="poster-rating">
-          <Star size={11} fill="currentColor" /> {poster.rating}
+          <Star size={11} fill="currentColor" /> {movie?.rating ?? "—"}
         </span>
       </div>
     </div>
   );
 }
 
+function PosterSkeleton({ genre, index }) {
+  return (
+    <div
+      className="poster-card poster-card--skeleton"
+      style={{ animationDelay: `${index * 0.12}s` }}
+    >
+      <div className="poster-genre">{genre}</div>
+    </div>
+  );
+}
+
+const ROTATE_INTERVAL_MS = 10_000;
+const POSTERS_PER_GENRE = 5;
+
 export default function LandingPage() {
+  const [posterSets, setPosterSets] = useState([]); // [{ genre, color, movies: [...] }]
+  const [postersLoading, setPostersLoading] = useState(true);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadGenrePosters() {
+      const results = await Promise.all(
+        POSTER_GENRES.map(async (genre) => {
+          try {
+            const res = await getMovies({ genre, limit: POSTERS_PER_GENRE, sort: "rating" });
+            const list = Array.isArray(res.data) ? res.data : (res.data?.movies ?? []);
+            const movies = list.map((raw) => {
+              const rating = Number(raw.rating ?? raw.averageScore ?? raw.voteAverage ?? 0) || 0;
+              return {
+                id: raw._id ?? raw.id,
+                title: raw.title ?? genre,
+                posterUrl: raw.posterUrl ?? raw.poster_url ?? null,
+                rating: rating > 0 ? rating.toFixed(1) : "—",
+              };
+            });
+            if (!movies.length) return null;
+            return { genre, color: GENRE_FALLBACK_COLOR[genre] ?? "#12121a", movies };
+          } catch {
+            return null;
+          }
+        })
+      );
+      if (!cancelled) {
+        setPosterSets(results.filter(Boolean));
+        setPostersLoading(false);
+      }
+    }
+
+    loadGenrePosters();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Rotate every genre tile to its next movie on a shared 10s beat.
+  useEffect(() => {
+    if (postersLoading || posterSets.length === 0) return;
+    const id = setInterval(() => setTick((t) => t + 1), ROTATE_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [postersLoading, posterSets.length]);
+
   return (
     <div className="landing-root">
       <nav className="landing-nav">
@@ -154,9 +227,18 @@ export default function LandingPage() {
         </div>
 
         <div className="poster-grid">
-          {POSTERS.map((p, i) => (
-            <PosterCard key={p.title} poster={p} index={i} />
-          ))}
+          {postersLoading
+            ? POSTER_GENRES.map((genre, i) => (
+                <PosterSkeleton key={genre} genre={genre} index={i} />
+              ))
+            : posterSets.map((set) => (
+                <PosterCard
+                  key={set.genre}
+                  genre={set.genre}
+                  color={set.color}
+                  movie={set.movies[tick % set.movies.length]}
+                />
+              ))}
           <div className="poster-overlay-bottom" />
         </div>
       </section>
