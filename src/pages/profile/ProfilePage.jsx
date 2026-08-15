@@ -29,6 +29,8 @@ import {
   LayoutGrid,
   Check,
   Eye,
+  EyeOff,
+  Lock,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import BackButton from "../../components/BackButton";
@@ -43,6 +45,7 @@ import api, {
   updateHistoryEntry,
   removeHistoryItem,
   updateProfile,
+  changePassword,
 } from "../../services/api";
 import GenreBadge from "../../components/GenreBadge";
 import "./ProfilePage.css";
@@ -615,6 +618,113 @@ function EditProfileModal({ initialName, initialEmail, onClose, onSaved }) {
   );
 }
 
+function PasswordField({ label, value, onChange, autoComplete }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <label className="block mb-3">
+      <span className="block text-[0.72rem] font-semibold text-[#9292b0] mb-1">{label}</span>
+      <div className="relative">
+        <input
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={onChange}
+          autoComplete={autoComplete}
+          className="w-full rounded-lg bg-[#0b0b0f] border border-white/[0.1] px-3 py-2 pr-9 text-[0.85rem] text-[#eeeef5] focus:outline-none focus:border-[#7c3aed]/50"
+        />
+        <button
+          type="button"
+          onClick={() => setVisible((v) => !v)}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6b6b8a] hover:text-[#eeeef5]"
+          aria-label={visible ? "Hide password" : "Show password"}
+        >
+          {visible ? <EyeOff size={15} /> : <Eye size={15} />}
+        </button>
+      </div>
+    </label>
+  );
+}
+
+function ChangePasswordModal({ onClose }) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!currentPassword) { setFormError("Enter your current password."); return; }
+    if (newPassword.length < 6) { setFormError("New password must be at least 6 characters."); return; }
+    if (newPassword === currentPassword) { setFormError("New password must be different from current password."); return; }
+    if (newPassword !== confirmPassword) { setFormError("New passwords don't match."); return; }
+
+    setSaving(true);
+    setFormError("");
+    try {
+      await changePassword({ currentPassword, newPassword });
+      toast.success("Password updated");
+      onClose();
+    } catch (err) {
+      setFormError(err.response?.data?.message ?? "Couldn't update password.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} role="presentation" />
+      <form
+        onSubmit={handleSubmit}
+        className="relative w-full max-w-sm rounded-2xl border border-white/[0.09] bg-[#13131a] p-5 shadow-2xl"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[1rem] font-bold text-[#eeeef5]">Change Password</h2>
+          <button type="button" onClick={onClose} className="text-[#6b6b8a] hover:text-[#eeeef5]" aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        {formError && <ErrorBanner message={formError} />}
+
+        <PasswordField
+          label="Current password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          autoComplete="current-password"
+        />
+        <PasswordField
+          label="New password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          autoComplete="new-password"
+        />
+        <div className="mb-1">
+          <PasswordField
+            label="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </div>
+
+        <p className="text-[0.72rem] text-[#6b6b8a] mb-4">
+          You'll stay signed in here, but other devices will be signed out.
+        </p>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#7c3aed] py-2.5 text-[0.84rem] font-bold text-white hover:bg-[#6d28d9] transition-colors disabled:opacity-60"
+        >
+          {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+          Update password
+        </button>
+      </form>
+    </div>
+  );
+}
+
 const TABS = [
   { key: "overview",   label: "Overview",         icon: LayoutGrid },
   { key: "watchlist",  label: "Watchlist",        icon: Bookmark },
@@ -629,6 +739,7 @@ export default function ProfilePage() {
 
   const [activeTab, setActiveTab] = useState("overview");
   const [editOpen, setEditOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const [profile, setProfile]           = useState(null);
   const [prefs, setPrefs]               = useState(null);
@@ -980,6 +1091,9 @@ export default function ProfilePage() {
               <button type="button" onClick={() => setEditOpen(true)} className="pf-card-cta" style={{ background: "none", border: "none", cursor: "pointer" }}>
                 <Pencil size={12} /> Edit profile <ChevronRight size={12} />
               </button>
+              <button type="button" onClick={() => setPasswordOpen(true)} className="pf-card-cta" style={{ background: "none", border: "none", cursor: "pointer", marginLeft: 16 }}>
+                <Lock size={12} /> Change password <ChevronRight size={12} />
+              </button>
             </Card>
 
             {/* ── preferences ── */}
@@ -1157,6 +1271,10 @@ export default function ProfilePage() {
             getCurrentUser?.();
           }}
         />
+      )}
+
+      {passwordOpen && (
+        <ChangePasswordModal onClose={() => setPasswordOpen(false)} />
       )}
     </div>
   );

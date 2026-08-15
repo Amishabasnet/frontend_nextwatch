@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   Clapperboard, Sparkles, RefreshCw, Star, Bookmark, BookmarkCheck,
@@ -91,13 +91,36 @@ function getInitials(name = "") {
 export default function RecommendationsPage() {
   const { user, isLoading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [selectedMood, setSelectedMood] = useState(null);
-  const [status, setStatus] = useState("idle"); // idle | loading | success | error
-  const [items, setItems] = useState([]);
-  const [source, setSource] = useState(null);
+  const CACHE_KEY = "nextwatch_recommendations_state";
+  const getCachedState = () => {
+    if (typeof window === "undefined") return { selectedMood: null, status: "idle", items: [], source: null, watchlist: [] };
+    try {
+      const rawCache = sessionStorage.getItem(CACHE_KEY);
+      if (!rawCache) return { selectedMood: null, status: "idle", items: [], source: null, watchlist: [] };
+      const cache = JSON.parse(rawCache);
+      if (cache?.userId !== user?.id) return { selectedMood: null, status: "idle", items: [], source: null, watchlist: [] };
+      return {
+        selectedMood: cache.selectedMood ?? null,
+        status: cache.status ?? "idle",
+        items: cache.items ?? [],
+        source: cache.source ?? null,
+        watchlist: Array.isArray(cache.watchlist) ? cache.watchlist : [],
+      };
+    } catch {
+      sessionStorage.removeItem(CACHE_KEY);
+      return { selectedMood: null, status: "idle", items: [], source: null, watchlist: [] };
+    }
+  };
+
+  const cached = getCachedState();
+  const [selectedMood, setSelectedMood] = useState(cached.selectedMood);
+  const [status, setStatus] = useState(cached.status);
+  const [items, setItems] = useState(cached.items);
+  const [source, setSource] = useState(cached.source);
   const [errorMessage, setErrorMessage] = useState("");
-  const [watchlist, setWatchlist] = useState(new Set());
+  const [watchlist, setWatchlist] = useState(new Set(cached.watchlist));
   const [activeMovie, setActiveMovie] = useState(null);
 
   const fetchByMood = useCallback(async (mood) => {
@@ -142,7 +165,7 @@ export default function RecommendationsPage() {
       setErrorMessage("Couldn't load movies for this mood. Please try again.");
       setStatus("error");
     }
-  }, []);
+  }, [setStatus, setErrorMessage, setItems, setSource]);
 
   const fetchRecommendations = useCallback(async () => {
     if (!user?.id) return;
@@ -161,14 +184,30 @@ export default function RecommendationsPage() {
       );
       setStatus("error");
     }
-  }, [user]);
+  }, [user, setStatus, setErrorMessage, setItems, setSource]);
 
-  // Load personalised recs on mount
+  // Load personalised recs on mount if no cached items are available
   useEffect(() => {
-    if (!authLoading && !selectedMood) {
+    if (!authLoading && !selectedMood && items.length === 0) {
       Promise.resolve().then(fetchRecommendations);
     }
-  }, [authLoading, fetchRecommendations, selectedMood]);
+  }, [authLoading, fetchRecommendations, selectedMood, items.length]);
+
+  // Persist recommendation state for back navigation
+  useEffect(() => {
+    if (status === "success" && items.length > 0 && user?.id) {
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+        userId: user.id,
+        selectedMood,
+        status,
+        items,
+        source,
+        watchlist: Array.from(watchlist),
+      }));
+    } else {
+      sessionStorage.removeItem(CACHE_KEY);
+    }
+  }, [selectedMood, status, items, source, watchlist, user?.id]);
 
   // Close modal on Escape
   useEffect(() => {
@@ -228,7 +267,9 @@ export default function RecommendationsPage() {
     }
   }, [watchlist]);
 
-  const handleViewDetails = useCallback((id) => navigate(`/movies/${id}`), [navigate]);
+  const handleViewDetails = useCallback((id) => {
+    navigate(`/movies/${id}`, { state: { from: location.pathname } });
+  }, [navigate, location.pathname]);
 
   const displayName = user?.username ?? user?.name ?? user?.email?.split("@")[0] ?? "there";
   const isLoading = authLoading || status === "loading";
