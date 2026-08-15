@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -22,6 +22,11 @@ import HistoryPage         from "./pages/history";
 import ProfilePage         from "./pages/profile/ProfilePage";
 import SettingsPage        from "./pages/settings/SettingsPage";
 import ProtectedRoute      from "./routes/protectedRoute";
+import AdminRoute          from "./routes/adminRoute";
+import AdminLayout         from "./pages/admin/AdminLayout";
+import AdminDashboardPage  from "./pages/admin/AdminDashboardPage";
+import AdminMoviesPage     from "./pages/admin/AdminMoviesPage";
+import AdminUsersPage      from "./pages/admin/AdminUsersPage";
 import NotFoundPage        from "./pages/NotFoundPage";
 import "./pages/landing/LandingPage.css";
 
@@ -52,6 +57,16 @@ export default function App() {
           <Route path="/history"         element={<HistoryPage />} />
           <Route path="/profile"         element={<ProfilePage />} />
           <Route path="/settings"        element={<SettingsPage />} />
+        </Route>
+
+        {/* Admin only */}
+        <Route element={<AdminRoute />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboardPage />} />
+            <Route path="movies"    element={<AdminMoviesPage />} />
+            <Route path="users"     element={<AdminUsersPage />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

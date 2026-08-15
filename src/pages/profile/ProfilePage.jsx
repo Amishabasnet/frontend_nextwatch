@@ -5,6 +5,7 @@ import {
   Clapperboard,
   User,
   Mail,
+  Phone,
   Shield,
   Calendar,
   Globe,
@@ -31,6 +32,15 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Smile,
+  Frown,
+  Leaf,
+  PartyPopper,
+  Meh,
+  Ghost,
+  Flame,
+  Hourglass,
+  HelpCircle,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import BackButton from "../../components/BackButton";
@@ -119,13 +129,20 @@ function getInitials(name = "") {
     .slice(0, 2) || "?";
 }
 
-function moodEmoji(mood = "") {
-  const map = {
-    happy: "😊", excited: "🤩", relaxed: "😌", sad: "😢",
-    anxious: "😟", bored: "😑", adventurous: "🧗", romantic: "💕",
-    scared: "😨", angry: "😠", nostalgic: "🥹", curious: "🤔",
-  };
-  return map[mood.toLowerCase()] ?? "🎭";
+const MOOD_ICON_MAP = {
+  happy:     { icon: Smile,       color: "#fbbf24" },
+  sad:       { icon: Frown,       color: "#60a5fa" },
+  relaxed:   { icon: Leaf,        color: "#34d399" },
+  excited:   { icon: PartyPopper, color: "#fb923c" },
+  bored:     { icon: Meh,         color: "#94a3b8" },
+  romantic:  { icon: Heart,       color: "#fb7185" },
+  scared:    { icon: Ghost,       color: "#818cf8" },
+  motivated: { icon: Flame,       color: "#f97316" },
+  nostalgic: { icon: Hourglass,   color: "#c084fc" },
+};
+
+function moodIconMeta(mood = "") {
+  return MOOD_ICON_MAP[mood.toLowerCase()] ?? { icon: HelpCircle, color: "#9292b0" };
 }
 
 function formatDate(raw) {
@@ -184,9 +201,10 @@ function GenrePill({ genre, variant = "like" }) {
 }
 
 function MoodChip({ mood }) {
+  const { icon: Icon, color } = moodIconMeta(mood.mood ?? mood);
   return (
     <span className="pf-mood-chip">
-      <span className="pf-mood-emoji">{moodEmoji(mood.mood ?? mood)}</span>
+      <Icon size={14} strokeWidth={2} className="pf-mood-icon" style={{ color }} />
       <span className="pf-mood-label">{mood.mood ?? mood}</span>
       {mood.createdAt && (
         <span className="pf-mood-date">{formatDate(mood.createdAt)}</span>
@@ -547,21 +565,26 @@ function ContinueWatchingTab({ movies, loading, error, onRetry, onMarkWatched, o
 }
 
 /* ── Edit Profile modal ── */
-function EditProfileModal({ initialName, initialEmail, onClose, onSaved }) {
+function EditProfileModal({ initialName, initialEmail, initialPhone, onClose, onSaved }) {
   const [name, setName] = useState(initialName ?? "");
   const [email, setEmail] = useState(initialEmail ?? "");
+  const [phone, setPhone] = useState(initialPhone ?? "");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) { setFormError("Name cannot be empty."); return; }
+    if (phone.trim() && !/^[+]?[\d\s()-]{7,15}$/.test(phone.trim())) {
+      setFormError("Enter a valid phone number.");
+      return;
+    }
     setSaving(true);
     setFormError("");
     try {
-      await updateProfile({ name: name.trim(), email: email.trim() });
+      await updateProfile({ name: name.trim(), email: email.trim(), phone: phone.trim() });
       toast.success("Profile updated");
-      onSaved({ name: name.trim(), email: email.trim() });
+      onSaved({ name: name.trim(), email: email.trim(), phone: phone.trim() });
       onClose();
     } catch (err) {
       setFormError(err.response?.data?.message ?? "Couldn't update profile.");
@@ -601,6 +624,17 @@ function EditProfileModal({ initialName, initialEmail, onClose, onSaved }) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            className="w-full rounded-lg bg-[#0b0b0f] border border-white/[0.1] px-3 py-2 text-[0.85rem] text-[#eeeef5] focus:outline-none focus:border-[#7c3aed]/50"
+          />
+        </label>
+
+        <label className="block mb-4">
+          <span className="block text-[0.72rem] font-semibold text-[#9292b0] mb-1">Phone</span>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+977 98XXXXXXXX"
             className="w-full rounded-lg bg-[#0b0b0f] border border-white/[0.1] px-3 py-2 text-[0.85rem] text-[#eeeef5] focus:outline-none focus:border-[#7c3aed]/50"
           />
         </label>
@@ -1086,6 +1120,7 @@ export default function ProfilePage() {
               {errors.profile && <ErrorBanner message={errors.profile} />}
               <InfoRow icon={User}     label="Name"      value={profileData.name ?? profileData.username} loading={loading.profile} />
               <InfoRow icon={Mail}     label="Email"     value={profileData.email}    loading={loading.profile} />
+              <InfoRow icon={Phone}    label="Phone"     value={profileData.phone || "Not set"} loading={loading.profile} />
               <InfoRow icon={Calendar} label="Age group" value={ageGroup}             loading={loading.profile} />
               <InfoRow icon={Shield}   label="Role"      value={role}                 loading={loading.profile} />
               <button type="button" onClick={() => setEditOpen(true)} className="pf-card-cta" style={{ background: "none", border: "none", cursor: "pointer" }}>
@@ -1265,6 +1300,7 @@ export default function ProfilePage() {
         <EditProfileModal
           initialName={profileData.name ?? profileData.username ?? ""}
           initialEmail={profileData.email ?? ""}
+          initialPhone={profileData.phone ?? ""}
           onClose={() => setEditOpen(false)}
           onSaved={(updated) => {
             setProfile((p) => ({ ...(p ?? {}), ...updated }));

@@ -138,6 +138,9 @@ export const getMovies    = (params)  => api.get("/movies", { params });
 export const getTopRatedMovies = (params) => api.get("/movies/top-rated", { params });
 export const getMovieById = (id)      => api.get(`/movies/${id}`);
 export const searchMovies = (params, config = {}) => api.get("/movies/search", { params, ...config });
+export const createMovie  = (payload) => api.post("/movies", payload);
+export const updateMovie  = (id, payload) => api.put(`/movies/${id}`, payload);
+export const deleteMovie  = (id)      => api.delete(`/movies/${id}`);
 
 export const getWatchlist       = (params)   => api.get("/watchlist", { params });
 export const getWatchlistByUser = (_userId, params) => api.get("/watchlist", { params });
@@ -157,4 +160,12 @@ export const forgotPassword = (email) => api.post("/auth/forgot-password", { ema
 export const resetPassword  = (token, password) => api.post("/auth/reset-password", { token, password });
 
 export const deleteUser = (userId) => api.delete(`/users/${userId}`);
+
+export const getAdminDashboard   = () => api.get("/admin/dashboard");
+export const getAdminUsers       = (params) => api.get("/admin/users", { params });
+export const getAdminUserById    = (id) => api.get(`/admin/users/${id}`);
+export const createAdminUser       = (payload) => api.post("/admin/users", payload);
+export const updateAdminUserRole   = (id, role)   => api.patch(`/admin/users/${id}/role`, { role });
+export const updateAdminUserStatus = (id, status) => api.patch(`/admin/users/${id}/status`, { status });
+export const deleteAdminUser       = (id) => api.delete(`/admin/users/${id}`);
 

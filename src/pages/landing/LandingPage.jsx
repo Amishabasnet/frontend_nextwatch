@@ -15,6 +15,10 @@ import {
   Popcorn,
   Zap,
   Users,
+  Frown,
+  Leaf,
+  Brain,
+  Flame,
 } from "lucide-react";
 import { getMovies } from "../../services/api";
 
@@ -29,12 +33,12 @@ const GENRE_FALLBACK_COLOR = {
 };
 
 const MOODS = [
-  { label: "Feel-Good",   emoji: "😄", color: "#fbbf24" },
-  { label: "Thrilling",   emoji: "😱", color: "#ef4444" },
-  { label: "Emotional",   emoji: "😢", color: "#60a5fa" },
-  { label: "Mind-Bending",emoji: "🤯", color: "#a78bfa" },
-  { label: "Relaxing",    emoji: "😌", color: "#34d399" },
-  { label: "Action",      emoji: "💥", color: "#f97316" },
+  { label: "Feel-Good",    icon: Smile, color: "#fbbf24" },
+  { label: "Thrilling",    icon: Zap,   color: "#ef4444" },
+  { label: "Emotional",    icon: Frown, color: "#60a5fa" },
+  { label: "Mind-Bending", icon: Brain, color: "#a78bfa" },
+  { label: "Relaxing",     icon: Leaf,  color: "#34d399" },
+  { label: "Action",       icon: Flame, color: "#f97316" },
 ];
 
 const HOW_IT_WORKS = [
@@ -271,13 +275,13 @@ export default function LandingPage() {
           </p>
 
           <div className="mood-grid">
-            {MOODS.map(({ emoji, label, color }) => (
+            {MOODS.map(({ icon: Icon, label, color }) => (
               <div
                 key={label}
                 className="mood-card"
                 style={{ "--mood-color": color }}
               >
-                <span className="mood-emoji">{emoji}</span>
+                <Icon size={22} strokeWidth={2} className="mood-icon" style={{ color }} />
                 <span className="mood-label">{label}</span>
               </div>
             ))}
