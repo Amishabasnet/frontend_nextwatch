@@ -1,5 +1,6 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   Clapperboard, TrendingUp, Clock, Sparkles,
@@ -102,6 +103,19 @@ function normalizeRecommendations(data) {
   };
 }
 
+function getCachedDashboardState() {
+  if (typeof window === "undefined") return null;
+  try {
+    const rawCache = sessionStorage.getItem("nextwatch_dashboard_state");
+    if (!rawCache) return null;
+    const cache = JSON.parse(rawCache);
+    return cache?.recs ? cache : null;
+  } catch {
+    sessionStorage.removeItem("nextwatch_dashboard_state");
+    return null;
+  }
+}
+
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -149,6 +163,7 @@ function LoadingScreen() {
 export default function DashboardPage() {
   const { user, isLoading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [avatarOpen, setAvatarOpen] = useState(false);
   const avatarRef = useRef(null);
 
@@ -166,15 +181,18 @@ export default function DashboardPage() {
     return () => document.removeEventListener("mousedown", close);
   }, [avatarOpen]);
 
-  const [recs, setRecs]               = useState({ personalized: [], moodBased: [], historyBased: [] });
-  const [latestMood, setLatestMood]   = useState(null);
-  const [preferences, setPreferences] = useState({ favoriteGenres: [], dislikedGenres: [] });
-  const [history, setHistory]         = useState([]);
-  const [movies, setMovies]           = useState([]);
-  const [topRated, setTopRated]       = useState([]);
-  const [genreRows, setGenreRows]     = useState([]); // [{ genre, movies }]
-  const [loading, setLoading]         = useState(true);
+  const CACHE_KEY = "nextwatch_dashboard_state";
+  const cachedDashboardState = getCachedDashboardState();
+  const [recs, setRecs]               = useState(cachedDashboardState?.recs ?? { personalized: [], moodBased: [], historyBased: [] });
+  const [latestMood, setLatestMood]   = useState(cachedDashboardState?.latestMood ?? null);
+  const [preferences, setPreferences] = useState(cachedDashboardState?.preferences ?? { favoriteGenres: [], dislikedGenres: [] });
+  const [history, setHistory]         = useState(cachedDashboardState?.history ?? []);
+  const [movies, setMovies]           = useState(cachedDashboardState?.movies ?? []);
+  const [topRated, setTopRated]       = useState(cachedDashboardState?.topRated ?? []);
+  const [genreRows, setGenreRows]     = useState(cachedDashboardState?.genreRows ?? []); // [{ genre, movies }]
+  const [loading, setLoading]         = useState(cachedDashboardState ? false : true);
   const [watchlist, setWatchlist]     = useState(new Set());
+  const cacheRestored = Boolean(cachedDashboardState);
 
   // --- Search + side filter panel state ---
   const [searchQuery, setSearchQuery]   = useState("");
@@ -203,11 +221,10 @@ export default function DashboardPage() {
   }, [filterPanelOpen]);
 
   // Run search whenever the debounced query or the side filters change
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (!isSearchActive) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchResults([]);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchStatus("idle");
       return;
     }
@@ -217,7 +234,6 @@ export default function DashboardPage() {
     searchAbortRef.current = controller;
 
     const run = async () => {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchStatus("loading");
       try {
         const params = {};
@@ -317,14 +333,14 @@ export default function DashboardPage() {
       if (!didCancel) setLoading(false);
     };
 
-    if (!authLoading) {
+    if (!authLoading && !cacheRestored) {
       Promise.resolve().then(loadDashboard);
     }
 
     return () => {
       didCancel = true;
     };
-  }, [authLoading, user?.id]);
+  }, [authLoading, user?.id, cacheRestored]);
 
   // Load persisted watchlist from backend
   useEffect(() => {
@@ -338,6 +354,21 @@ export default function DashboardPage() {
     };
     if (!authLoading) loadWatchlist();
   }, [authLoading]);
+
+  useEffect(() => {
+    if (user?.id && !loading) {
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+        userId: user.id,
+        recs,
+        latestMood,
+        preferences,
+        history,
+        movies,
+        topRated,
+        genreRows,
+      }));
+    }
+  }, [user?.id, recs, latestMood, preferences, history, movies, topRated, genreRows, loading]);
 
   const handleAddToWatchlist = useCallback(async (id) => {
     const inList = watchlist.has(id);
@@ -367,8 +398,8 @@ export default function DashboardPage() {
   }, [watchlist]);
 
   const handleViewDetails = useCallback((id) => {
-    navigate(`/movies/${id}`);
-  }, [navigate]);
+    navigate(`/movies/${id}`, { state: { from: location.pathname } });
+  }, [navigate, location.pathname]);
 
   if (authLoading) return <LoadingScreen />;
 
