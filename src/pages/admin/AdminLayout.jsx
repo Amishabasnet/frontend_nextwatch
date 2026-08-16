@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { LayoutDashboard, Film, Users, ArrowLeftCircle, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Film, Users, Star, ArrowLeftCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import "./Admin.css";
 
@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/movies",    label: "Manage Movies", icon: Film },
   { to: "/admin/users",     label: "Manage Users", icon: Users },
+  { to: "/admin/featured",  label: "Featured Movies", icon: Star },
 ];
 
 function NavLinks({ onClick }) {

@@ -7,7 +7,7 @@ import {
   LogOut, TrendingUp, ArrowLeft,
   Smile, Frown, Leaf, PartyPopper, Meh, Heart, Ghost, Flame, Hourglass,
 } from "lucide-react";
-import { getRecommendations, postWatchlist, deleteWatchlist, getWatchlist, searchMovies, getMovieById } from "../../services/api";
+import { getRecommendations, postWatchlist, deleteWatchlist, getWatchlist, getMovieById } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import "../../components/BackButton/BackButton.css";
 import "./RecommendationPage.css";
@@ -23,18 +23,6 @@ const MOODS = [
   { label: "Bored",     icon: Meh,         color: "#94a3b8" },
   { label: "Nostalgic", icon: Hourglass,   color: "#c084fc" },
 ];
-
-const MOOD_GENRE_MAP = {
-  Happy:     ["Comedy", "Animation", "Adventure"],
-  Sad:       ["Drama", "Romance"],
-  Excited:   ["Action", "Thriller", "Adventure"],
-  Relaxed:   ["Documentary", "Animation", "Comedy"],
-  Scared:    ["Horror", "Mystery", "Thriller"],
-  Romantic:  ["Romance", "Drama"],
-  Motivated: ["Action", "Adventure", "Sci-Fi"],
-  Bored:     ["Comedy", "Action", "Fantasy"],
-  Nostalgic: ["Drama", "Romance", "Western"],
-};
 
 function normalizeMovie(raw) {
   if (!raw) return null;
@@ -105,48 +93,25 @@ export default function RecommendationsPage() {
   const [detailsLoading, setDetailsLoading] = useState(false);
 
   const fetchByMood = useCallback(async (mood) => {
+    if (!user?.id) return;
     setStatus("loading");
     setErrorMessage("");
     try {
-      const genres = MOOD_GENRE_MAP[mood] || [];
-
-      // Try mood-based endpoint first via searchMovies
-      let movies = [];
-      try {
-        const res = await searchMovies({ mood });
-        const d = res.data;
-        movies = Array.isArray(d) ? d : Array.isArray(d?.movies) ? d.movies : [];
-      } catch {
-        /* ignore failures from mood search */
-      }
-
-      // If no mood-tagged movies, fallback to genre-based search via searchMovies
-      if (movies.length === 0 && genres.length > 0) {
-        // Try each preferred genre and merge results
-        const results = await Promise.all(
-          genres.map(genre => searchMovies({ genre }).then(r => {
-            const d = r.data;
-            return Array.isArray(d) ? d : Array.isArray(d?.movies) ? d.movies : [];
-          }).catch(() => []))
-        );
-        // Flatten and deduplicate by _id
-        const seen = new Set();
-        movies = results.flat().filter(m => {
-          const id = String(m._id ?? m.id ?? '');
-          if (seen.has(id)) return false;
-          seen.add(id);
-          return true;
-        });
-      }
-
-      setItems(movies.map(normalizeMovie).filter(Boolean));
-      setSource("mood");
+      // Route through the same scoring engine as the default recommendations,
+      // just with this mood overriding whatever's currently saved for the
+      // user. That's what gives mood-filtered results a real match % and a
+      // specific reason, instead of falling back to a plain catalogue search
+      // with no scoring at all.
+      const res = await getRecommendations(user.id, { mood });
+      const normalized = normalizeRecommendationsResponse(res.data);
+      setItems(normalized.items);
+      setSource(normalized.source);
       setStatus("success");
     } catch {
       setErrorMessage("Couldn't load movies for this mood. Please try again.");
       setStatus("error");
     }
-  }, []);
+  }, [user]);
 
   const fetchRecommendations = useCallback(async () => {
     if (!user?.id) return;
@@ -591,4 +556,3 @@ function ErrorState({ message, onRetry }) {
     </div>
   );
 }
-/* append this to RecommendationPage.css */
