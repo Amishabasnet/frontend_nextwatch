@@ -31,6 +31,13 @@ function getPasswordRequirements(pw) {
 }
 
 const PHONE_REGEX = /^[+]?[\d\s()-]{7,15}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
+
+const MAX_USERNAME_LEN = 30;
+const MAX_EMAIL_LEN = 254;
+const MAX_PHONE_LEN = 10;
+const MAX_PASSWORD_LEN = 128;
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -47,6 +54,7 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   const strength = getPasswordStrength(form.password);
   const requirements = getPasswordRequirements(form.password);
@@ -56,15 +64,26 @@ export default function RegisterPage() {
 
   const validate = () => {
     const errs = {};
-    if (!form.username.trim()) errs.username = "Username is required.";
-    else if (form.username.trim().length < 3) errs.username = "Must be at least 3 characters.";
-    if (!form.email.trim()) errs.email = "Email is required.";
-    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = "Enter a valid email.";
-    if (form.phone.trim() && !PHONE_REGEX.test(form.phone.trim())) {
+    const username = form.username.trim();
+    if (!username) errs.username = "Username is required.";
+    else if (username.length < 3) errs.username = "Must be at least 3 characters.";
+    else if (username.length > MAX_USERNAME_LEN) errs.username = `Must be ${MAX_USERNAME_LEN} characters or fewer.`;
+    else if (!USERNAME_REGEX.test(username)) errs.username = "Only letters, numbers, dots, hyphens and underscores allowed.";
+
+    const email = form.email.trim();
+    if (!email) errs.email = "Email is required.";
+    else if (email.length > MAX_EMAIL_LEN) errs.email = "Email is too long.";
+    else if (!EMAIL_REGEX.test(email)) errs.email = "Enter a valid email.";
+
+    const phone = form.phone.trim();
+    if (phone && !PHONE_REGEX.test(phone)) {
       errs.phone = "Enter a valid phone number.";
     }
+
     if (!form.password) errs.password = "Password is required.";
+    else if (form.password.length > MAX_PASSWORD_LEN) errs.password = `Must be ${MAX_PASSWORD_LEN} characters or fewer.`;
     else if (unmetRequirements.length) errs.password = "Password doesn't meet all requirements.";
+
     if (!form.confirmPassword) errs.confirmPassword = "Please confirm your password.";
     else if (form.password !== form.confirmPassword) errs.confirmPassword = "Passwords don't match.";
     return errs;
@@ -75,8 +94,12 @@ export default function RegisterPage() {
   // becomes valid, without waiting for a submit attempt.
   const isFormValid =
     form.username.trim().length >= 3 &&
-    /\S+@\S+\.\S+/.test(form.email) &&
+    form.username.trim().length <= MAX_USERNAME_LEN &&
+    USERNAME_REGEX.test(form.username.trim()) &&
+    form.email.trim().length <= MAX_EMAIL_LEN &&
+    EMAIL_REGEX.test(form.email.trim()) &&
     (!form.phone.trim() || PHONE_REGEX.test(form.phone.trim())) &&
+    form.password.length <= MAX_PASSWORD_LEN &&
     unmetRequirements.length === 0 &&
     passwordsMatch;
 
@@ -86,10 +109,23 @@ export default function RegisterPage() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
+  // Validate a field as soon as the user leaves it, so mistakes surface
+  // before they even reach the submit button — not just on submit.
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    const errs = validate();
+    setErrors((prev) => ({ ...prev, [name]: errs[name] || "" }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      setTouched({ username: true, email: true, phone: true, password: true, confirmPassword: true });
+      return;
+    }
 
     setIsLoading(true);
     const result = await register({
@@ -143,6 +179,8 @@ export default function RegisterPage() {
               autoComplete="username"
               value={form.username}
               onChange={handleChange}
+              onBlur={handleBlur}
+              maxLength={MAX_USERNAME_LEN}
               placeholder="johndoe"
               className={`auth-input${errors.username ? " auth-input--error" : ""}`}
             />
@@ -159,6 +197,8 @@ export default function RegisterPage() {
               autoComplete="email"
               value={form.email}
               onChange={handleChange}
+              onBlur={handleBlur}
+              maxLength={MAX_EMAIL_LEN}
               placeholder="you@example.com"
               className={`auth-input${errors.email ? " auth-input--error" : ""}`}
             />
@@ -175,7 +215,9 @@ export default function RegisterPage() {
               autoComplete="tel"
               value={form.phone}
               onChange={handleChange}
-              placeholder="+1 234 567 8900"
+              onBlur={handleBlur}
+              maxLength={MAX_PHONE_LEN}
+              placeholder="+977 98********"
               className={`auth-input${errors.phone ? " auth-input--error" : ""}`}
             />
             {errors.phone && <span className="auth-error">{errors.phone}</span>}
@@ -192,6 +234,8 @@ export default function RegisterPage() {
                 autoComplete="new-password"
                 value={form.password}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                maxLength={MAX_PASSWORD_LEN}
                 placeholder="Min. 8 characters"
                 className={`auth-input auth-input--has-icon${errors.password ? " auth-input--error" : ""}`}
               />
@@ -246,6 +290,8 @@ export default function RegisterPage() {
                 autoComplete="new-password"
                 value={form.confirmPassword}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                maxLength={MAX_PASSWORD_LEN}
                 placeholder="••••••••"
                 className={`auth-input auth-input--has-icon${errors.confirmPassword ? " auth-input--error" : ""}`}
               />

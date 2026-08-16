@@ -16,6 +16,7 @@ import { useAuth } from "../../hooks/useAuth";
 import MoodBadge, { MOOD_CONFIG } from "../../components/MoodBadge";
 import GenreBadge from "../../components/GenreBadge";
 import MovieSection                    from "../../components/MovieSelection";
+import { DASHBOARD_CACHE_KEY } from "../../utils/dashboardCache";
 
 const DASH_GENRES = [
   "Action", "Adventure", "Animation", "Comedy", "Crime",
@@ -106,12 +107,12 @@ function normalizeRecommendations(data) {
 function getCachedDashboardState() {
   if (typeof window === "undefined") return null;
   try {
-    const rawCache = sessionStorage.getItem("nextwatch_dashboard_state");
+    const rawCache = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
     if (!rawCache) return null;
     const cache = JSON.parse(rawCache);
     return cache?.recs ? cache : null;
   } catch {
-    sessionStorage.removeItem("nextwatch_dashboard_state");
+    sessionStorage.removeItem(DASHBOARD_CACHE_KEY);
     return null;
   }
 }
@@ -181,7 +182,6 @@ export default function DashboardPage() {
     return () => document.removeEventListener("mousedown", close);
   }, [avatarOpen]);
 
-  const CACHE_KEY = "nextwatch_dashboard_state";
   const cachedDashboardState = getCachedDashboardState();
   const [recs, setRecs]               = useState(cachedDashboardState?.recs ?? { personalized: [], moodBased: [], historyBased: [] });
   const [latestMood, setLatestMood]   = useState(cachedDashboardState?.latestMood ?? null);
@@ -357,7 +357,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user?.id && !loading) {
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+      sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({
         userId: user.id,
         recs,
         latestMood,

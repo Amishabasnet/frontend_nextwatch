@@ -21,6 +21,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import BackButton from "../../components/BackButton";
 import { postMood, getMoods, getLatestMood } from "../../services/api";
+import { clearDashboardCache } from "../../utils/dashboardCache";
 
 const MOODS = [
   { id: "Happy", label: "Happy", icon: Smile, color: "#fbbf24" },
@@ -123,6 +124,8 @@ export default function MoodPage() {
     setPageStatus("submitting");
     try {
       await postMood({ mood: selectedMood, timestamp: new Date().toISOString(), userId: user?.id });
+      // Dashboard's cached mood/recs are now stale — force a refetch next visit
+      clearDashboardCache();
       toast.success("Mood logged! Finding recommendations for you…");
       setPageStatus("idle");
       // Short pause so the toast is visible before navigation
