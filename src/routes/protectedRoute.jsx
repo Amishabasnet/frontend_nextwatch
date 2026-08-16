@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
 export default function ProtectedRoute() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -11,6 +11,10 @@ export default function ProtectedRoute() {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (user?.consentGiven === false && location.pathname !== "/consent") {
+    return <Navigate to="/consent" replace />;
   }
 
   return <Outlet />;

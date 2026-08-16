@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   Clapperboard,
@@ -28,6 +28,7 @@ import {
   Trash2,
   CheckCircle,
   TriangleAlert,
+  Film,
 } from "lucide-react";
 import {
   getMovieById,
@@ -40,6 +41,7 @@ import {
   putRating,
   deleteRating,
   getRecommendations,
+  getMovies,
 } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import GenreBadge from "../../components/GenreBadge";
@@ -95,6 +97,7 @@ export default function MovieDetailsPage() {
   const { id } = useParams();
   const { user, isLoading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [movie, setMovie]             = useState(null);
   const [status, setStatus]           = useState("loading");
@@ -103,6 +106,8 @@ export default function MovieDetailsPage() {
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
+  const [relatedMovies, setRelatedMovies] = useState([]);
+  const [relatedStatus, setRelatedStatus] = useState("idle"); // idle|loading|success|error
 
   // Full rating panel state
   const [existingRating, setExistingRating]   = useState(null); // rating object from API
@@ -114,6 +119,28 @@ export default function MovieDetailsPage() {
 
   const displayName = user?.username ?? user?.name ?? user?.email?.split("@")[0] ?? "there";
 
+  const fetchRelatedMovies = useCallback(async (currentMovie) => {
+    if (!currentMovie?.genres?.length) {
+      setRelatedMovies([]);
+      setRelatedStatus("success");
+      return;
+    }
+    setRelatedStatus("loading");
+    try {
+      const res = await getMovies({ genre: currentMovie.genres[0], limit: 13 });
+      const list = Array.isArray(res.data) ? res.data : (res.data?.movies ?? []);
+      const normalized = list
+        .map(normalizeMovie)
+        .filter((m) => m && String(m.id) !== String(currentMovie.id))
+        .slice(0, 12);
+      setRelatedMovies(normalized);
+      setRelatedStatus("success");
+    } catch {
+      setRelatedMovies([]);
+      setRelatedStatus("error");
+    }
+  }, []);
+
   const fetchMovie = useCallback(async () => {
     if (!id) return;
     setStatus("loading");
@@ -123,11 +150,12 @@ export default function MovieDetailsPage() {
       const m = normalizeMovie(res.data);
       setMovie(m);
       setStatus("success");
+      fetchRelatedMovies(m);
     } catch (err) {
       setErrorMsg(err.response?.data?.message ?? "Couldn't load movie details.");
       setStatus("error");
     }
-  }, [id]);
+  }, [id, fetchRelatedMovies]);
 
   const fetchExistingRating = useCallback(async () => {
     if (!id) return;
@@ -368,7 +396,20 @@ const mine = list.find(
 
       <main className="md-main">
         {/* Back */}
-        <button type="button" className="md-back-btn" onClick={() => navigate(-1)}>
+<button
+        type="button"
+        className="md-back-btn"
+        onClick={() => {
+          const from = location.state?.from;
+          if (typeof from === "string") {
+            navigate(from, { replace: true });
+          } else if (window.history.state?.idx > 0) {
+            navigate(-1);
+          } else {
+            navigate("/dashboard", { replace: true });
+          }
+        }}
+      >
           <ArrowLeft size={15} strokeWidth={2} />
           Back
         </button>
@@ -400,6 +441,8 @@ const mine = list.find(
             setIsEditing={setIsEditing}
             onSubmitRating={handleSubmitRating}
             onDeleteRating={() => setShowDeleteModal(true)}
+            relatedMovies={relatedMovies}
+            relatedStatus={relatedStatus}
           />
         )}
       </main>
@@ -439,6 +482,7 @@ function MovieContent({
   embedUrl, setTrailerOpen,
   existingRating, ratingStatus, isEditing, setIsEditing,
   onSubmitRating, onDeleteRating,
+  relatedMovies, relatedStatus,
 }) {
   const [imgError, setImgError] = useState(false);
   const {
@@ -632,6 +676,29 @@ function MovieContent({
           </section>
         )}
 
+        {/* Related Movies */}
+        {(relatedStatus === "loading" || relatedMovies.length > 0) && (
+          <section className="md-section md-related-section">
+            <h2 className="md-section-title">
+              <Film size={16} strokeWidth={2} />
+              You Might Also Like
+            </h2>
+            {relatedStatus === "loading" ? (
+              <div className="md-related-grid">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <div key={i} className="md-related-card md-related-card--skeleton" />
+                ))}
+              </div>
+            ) : (
+              <div className="md-related-grid">
+                {relatedMovies.map((m) => (
+                  <RelatedMovieCard key={m.id} movie={m} />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
         {/* Full Rating Panel */}
         <RatingPanel
           existingRating={existingRating}
@@ -644,6 +711,40 @@ function MovieContent({
         />
       </div>
     </div>
+  );
+}
+
+function RelatedMovieCard({ movie }) {
+  const [imgError, setImgError] = useState(false);
+  const hasPoster = movie.posterUrl && !imgError;
+  const ratingDisplay = movie.rating > 0 ? Number(movie.rating).toFixed(1) : null;
+
+  return (
+    <Link to={`/movies/${movie.id}`} className="md-related-card">
+      <div className="md-related-poster">
+        {hasPoster ? (
+          <img
+            src={movie.posterUrl}
+            alt={movie.title}
+            loading="lazy"
+            onError={() => setImgError(true)}
+            className="md-related-img"
+          />
+        ) : (
+          <div className="md-related-fallback" style={{ background: titleToGradient(movie.title) }}>
+            <span>{movie.title.charAt(0).toUpperCase()}</span>
+          </div>
+        )}
+        {ratingDisplay && (
+          <div className="md-related-rating">
+            <Star size={10} strokeWidth={0} fill="#fbbf24" />
+            {ratingDisplay}
+          </div>
+        )}
+      </div>
+      <span className="md-related-title">{movie.title}</span>
+      {movie.releaseYear && <span className="md-related-year">{movie.releaseYear}</span>}
+    </Link>
   );
 }
 

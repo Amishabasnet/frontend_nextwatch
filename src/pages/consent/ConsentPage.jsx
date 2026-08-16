@@ -85,7 +85,7 @@ const PRIVACY_COMMITMENTS = [
 
 export default function ConsentPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
 
   // ProtectedRoute only renders this once auth has resolved, so user is
   // already stable here — a lazy initial state is enough, no effect needed.
@@ -101,10 +101,11 @@ export default function ConsentPage() {
     try {
       // The backend only has an update (PUT) endpoint for consent — it
       // doubles as the "first time" submission too.
-      await putConsent(user.id, { consentGiven: true });
+      const response = await putConsent(user.id, { consentGiven: true });
+      updateUser({ ...user, consentGiven: true, consentDate: response?.consentDate ?? user?.consentDate ?? new Date().toISOString() });
       toast.success("Thanks for agreeing — let's personalise your experience!");
       setPageStatus("idle");
-      setTimeout(() => navigate("/preferences"), 900);
+      navigate("/preferences", { replace: true });
     } catch {
       setPageStatus("error");
       toast.error("Something went wrong. Please try again.");
