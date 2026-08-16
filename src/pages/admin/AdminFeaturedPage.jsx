@@ -67,7 +67,7 @@ function MoviePicker({ value, onSelect }) {
             )}
             <span className="adm-cell-title">{value.title}</span>
           </div>
-          <button type="button" className="adm-modal-close" onClick={() => onSelect(null)} aria-label="Clear selection">
+          <button type="button" className="adm-modal-close" onMouseDown={(e) => { e.preventDefault(); onSelect(null); }} aria-label="Clear selection">
             <X size={14} />
           </button>
         </div>
@@ -78,6 +78,20 @@ function MoviePicker({ value, onSelect }) {
           value={query}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              // Prevent the surrounding <form> from submitting on Enter.
+              e.preventDefault();
+              e.stopPropagation();
+              if (results.length > 0) {
+                onSelect(results[0]);
+                setOpen(false);
+                setQuery("");
+              }
+            } else if (e.key === "Escape") {
+              setOpen(false);
+            }
+          }}
         />
       )}
 
@@ -99,7 +113,16 @@ function MoviePicker({ value, onSelect }) {
                 key={m.id ?? m._id}
                 className="adm-row-title"
                 style={{ padding: "6px 8px", borderRadius: 6, cursor: "pointer" }}
-                onClick={() => { onSelect(m); setOpen(false); setQuery(""); }}
+                onMouseDown={(e) => {
+                  // Use mousedown (fires before the outside-click / blur
+                  // handlers run) instead of click, so selecting a result
+                  // can't be lost to a re-render race that unmounts the
+                  // list before the click event fires.
+                  e.preventDefault();
+                  onSelect(m);
+                  setOpen(false);
+                  setQuery("");
+                }}
               >
                 {m.posterUrl ? (
                   <img src={m.posterUrl} alt="" className="adm-poster-thumb" />

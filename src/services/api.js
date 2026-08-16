@@ -137,6 +137,7 @@ export const deleteHistory     = () => api.delete("/history/clear");
 export const getMovies    = (params)  => api.get("/movies", { params });
 export const getTopRatedMovies = (params) => api.get("/movies/top-rated", { params });
 export const getMovieById = (id)      => api.get(`/movies/${id}`);
+export const getRelatedMovies = (id, params) => api.get(`/movies/${id}/related`, { params });
 export const searchMovies = (params, config = {}) => api.get("/movies/search", { params, ...config });
 export const createMovie  = (payload) => api.post("/movies", payload);
 export const updateMovie  = (id, payload) => api.put(`/movies/${id}`, payload);

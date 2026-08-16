@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -16,6 +16,9 @@ import {
   SmilePlus,
   Bookmark,
   BookmarkCheck,
+  Settings,
+  ShieldCheck,
+  User,
 } from "lucide-react";
 import { getMovies, postWatchlist, deleteWatchlist, getWatchlist } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
@@ -94,6 +97,8 @@ export default function MoviesPage() {
   const [page, setPage]             = useState(1);
   const [watchlist, setWatchlist]   = useState(new Set());
   const [sortOpen, setSortOpen]     = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const avatarRef = useRef(null);
 
   const displayName = user?.username ?? user?.name ?? user?.email?.split("@")[0] ?? "there";
 
@@ -130,6 +135,18 @@ export default function MoviesPage() {
       fetchWatchlist();
     }
   }, [authLoading, fetchMovies, fetchWatchlist]);
+
+  // Close avatar dropdown on outside click
+  useEffect(() => {
+    if (!avatarOpen) return;
+    const handleClick = (e) => {
+      if (avatarRef.current && !avatarRef.current.contains(e.target)) {
+        setAvatarOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [avatarOpen]);
 
   const sorted = sortMovies(allMovies, sortKey);
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
@@ -191,15 +208,63 @@ export default function MoviesPage() {
             Mood
           </Link>
 
-          <div className="mv-nav-user">
-            <div className="mv-avatar" title={displayName}>{getInitials(displayName)}</div>
-            <span className="mv-nav-username">{displayName}</span>
+          <div style={{ position: "relative" }} ref={avatarRef}>
+            <button
+              type="button"
+              onClick={() => setAvatarOpen(prev => !prev)}
+              style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", background: "transparent", border: "none" }}
+            >
+              <div
+                className="mv-avatar"
+                title={displayName}
+                style={{ cursor: "pointer" }}
+              >
+                {getInitials(displayName)}
+              </div>
+              <span className="mv-nav-username" style={{ cursor: "pointer" }}>{displayName}</span>
+            </button>
+            {avatarOpen && (
+              <div
+                style={{
+                  position: "absolute", top: "calc(100% + 8px)", right: 0,
+                  background: "#1a1a24", border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 12, padding: "6px", minWidth: 160, zIndex: 200,
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                }}
+              >
+                <Link to="/profile" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, color: "#9292b0", textDecoration: "none", fontSize: "0.82rem", fontWeight: 600 }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  onClick={() => setAvatarOpen(false)}
+                >
+                  <User size={13} strokeWidth={2} /> Profile
+                </Link>
+                <Link to="/settings" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, color: "#9292b0", textDecoration: "none", fontSize: "0.82rem", fontWeight: 600 }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  onClick={() => setAvatarOpen(false)}
+                >
+                  <Settings size={13} strokeWidth={2} /> Settings
+                </Link>
+                {user?.role === "admin" && (
+                  <Link to="/admin/dashboard" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, color: "#a78bfa", textDecoration: "none", fontSize: "0.82rem", fontWeight: 600 }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(167,139,250,0.08)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    onClick={() => setAvatarOpen(false)}
+                  >
+                    <ShieldCheck size={13} strokeWidth={2} /> Admin Panel
+                  </Link>
+                )}
+                <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "4px 0" }} />
+                <button type="button" onClick={() => { setAvatarOpen(false); logout(); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, color: "#f87171", background: "transparent", border: "none", fontSize: "0.82rem", fontWeight: 600, width: "100%", cursor: "pointer" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(248,113,113,0.08)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  <LogOut size={13} strokeWidth={2} /> Sign out
+                </button>
+              </div>
+            )}
           </div>
-
-          <button type="button" onClick={logout} className="mv-nav-signout">
-            <LogOut size={13} strokeWidth={2} />
-            <span className="mv-nav-signout-label">Sign out</span>
-          </button>
         </div>
       </nav>
 

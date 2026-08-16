@@ -207,6 +207,39 @@ Moviedetailpage · CSS
   border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 
+.md-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.md-section-header .md-section-title {
+  margin: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.md-shuffle-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 8px; padding: 6px 12px;
+  font-size: 0.76rem; font-weight: 600; color: #a78bfa;
+  cursor: pointer; transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.md-shuffle-btn:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: rgba(139, 92, 246, 0.5);
+  color: #d8b4fe;
+}
+
+.md-shuffle-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Cast grid */
 .md-cast-grid {
   display: grid;
@@ -519,14 +552,39 @@ Moviedetailpage · CSS
 
 /* Related Movies */
 .md-related-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  display: flex;
   gap: 16px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding-bottom: 8px;
+  /* Scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.5) rgba(255, 255, 255, 0.08);
+}
+
+.md-related-grid::-webkit-scrollbar {
+  height: 6px;
+}
+
+.md-related-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+.md-related-grid::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.5);
+  border-radius: 3px;
+}
+
+.md-related-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.8);
 }
 
 .md-related-card {
   display: flex; flex-direction: column; gap: 6px;
   text-decoration: none; cursor: pointer;
+  flex: 0 0 140px;
+  min-width: 140px;
 }
 
 .md-related-poster {
@@ -588,7 +646,10 @@ Moviedetailpage · CSS
   .md-rating-section { padding: 1.5rem; }
   .md-rp-stars { gap: 2px; }
   .md-rp-star-btn svg { width: 28px; height: 28px; }
-  .md-related-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+  .md-related-card { flex: 0 0 110px; min-width: 110px; }
+  .md-related-grid { gap: 10px; }
+  .md-section-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .md-shuffle-btn { align-self: flex-end; }
 }
  
 
