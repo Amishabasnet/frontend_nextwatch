@@ -16,6 +16,7 @@ import { useAuth } from "../../hooks/useAuth";
 import MoodBadge, { MOOD_CONFIG } from "../../components/MoodBadge";
 import GenreBadge from "../../components/GenreBadge";
 import MovieSection                    from "../../components/MovieSelection";
+import { DASHBOARD_CACHE_KEY } from "../../utils/dashboardCache";
 
 const DASH_GENRES = [
   "Action", "Adventure", "Animation", "Comedy", "Crime",
@@ -106,12 +107,12 @@ function normalizeRecommendations(data) {
 function getCachedDashboardState() {
   if (typeof window === "undefined") return null;
   try {
-    const rawCache = sessionStorage.getItem("nextwatch_dashboard_state");
+    const rawCache = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
     if (!rawCache) return null;
     const cache = JSON.parse(rawCache);
     return cache?.recs ? cache : null;
   } catch {
-    sessionStorage.removeItem("nextwatch_dashboard_state");
+    sessionStorage.removeItem(DASHBOARD_CACHE_KEY);
     return null;
   }
 }
@@ -181,7 +182,6 @@ export default function DashboardPage() {
     return () => document.removeEventListener("mousedown", close);
   }, [avatarOpen]);
 
-  const CACHE_KEY = "nextwatch_dashboard_state";
   const cachedDashboardState = getCachedDashboardState();
   const [recs, setRecs]               = useState(cachedDashboardState?.recs ?? { personalized: [], moodBased: [], historyBased: [] });
   const [latestMood, setLatestMood]   = useState(cachedDashboardState?.latestMood ?? null);
@@ -357,7 +357,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user?.id && !loading) {
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+      sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({
         userId: user.id,
         recs,
         latestMood,
@@ -733,6 +733,21 @@ export default function DashboardPage() {
 
         <section className="dash-section" style={{ animationDelay: "55ms" }}>
           <MovieSection
+            title="Trending Now"
+            subtitle="What everyone is watching this week"
+            icon={TrendingUp}
+            iconColor="#fb923c"
+            movies={movies}
+            loading={loading}
+            emptyMessage="Trending movies will appear here soon."
+            onAddToWatchlist={handleAddToWatchlist}
+            onViewDetails={handleViewDetails}
+            watchlist={watchlist}
+          />
+        </section>
+
+        <section className="dash-section" style={{ animationDelay: "110ms" }}>
+          <MovieSection
             title="Recommended for You"
             subtitle="Personalised picks based on your taste"
             icon={Sparkles}
@@ -760,7 +775,7 @@ export default function DashboardPage() {
         </section>
 
         {hasMoodSection && (
-          <section className="dash-section" style={{ animationDelay: "110ms" }}>
+          <section className="dash-section" style={{ animationDelay: "165ms" }}>
             <MovieSection
               title={
                 latestMood?.mood
@@ -781,7 +796,7 @@ export default function DashboardPage() {
         )}
 
         {hasTopRatedSection && (
-          <section className="dash-section" style={{ animationDelay: "165ms" }}>
+          <section className="dash-section" style={{ animationDelay: "220ms" }}>
             <MovieSection
               title="Top 10 Movies"
               subtitle="The highest-rated titles on NextWatch right now"
@@ -801,7 +816,7 @@ export default function DashboardPage() {
           <section
             className="dash-section"
             key={genre}
-            style={{ animationDelay: `${200 + i * 55}ms` }}
+            style={{ animationDelay: `${275 + i * 55}ms` }}
           >
             <MovieSection
               title={`${genre} Movies`}
@@ -817,21 +832,6 @@ export default function DashboardPage() {
             />
           </section>
         ))}
-
-        <section className="dash-section" style={{ animationDelay: "550ms" }}>
-          <MovieSection
-            title="Trending Now"
-            subtitle="What everyone is watching this week"
-            icon={TrendingUp}
-            iconColor="#fb923c"
-            movies={movies}
-            loading={loading}
-            emptyMessage="Trending movies will appear here soon."
-            onAddToWatchlist={handleAddToWatchlist}
-            onViewDetails={handleViewDetails}
-            watchlist={watchlist}
-          />
-        </section>
 
         {hasRecentSection && (
           <section className="dash-section" style={{ animationDelay: "605ms" }}>

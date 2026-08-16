@@ -5,6 +5,10 @@ import { useAuth } from "../../hooks/useAuth";
 import { toast } from "react-toastify";
 import "./LoginPage.css";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_EMAIL_LEN = 254;
+const MAX_PASSWORD_LEN = 128;
+
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -16,14 +20,28 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   const validate = () => {
     const errs = {};
-    if (!form.email.trim()) errs.email = "Email is required.";
-    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = "Enter a valid email.";
+    const email = form.email.trim();
+    if (!email) errs.email = "Email is required.";
+    else if (email.length > MAX_EMAIL_LEN) errs.email = "Email is too long.";
+    else if (!EMAIL_REGEX.test(email)) errs.email = "Enter a valid email.";
+
     if (!form.password) errs.password = "Password is required.";
+    else if (form.password.length > MAX_PASSWORD_LEN) errs.password = `Must be ${MAX_PASSWORD_LEN} characters or fewer.`;
     return errs;
   };
+
+  // Recalculated on every render so the button enables the instant the
+  // form becomes valid, mirroring RegisterPage's pattern.
+  const isFormValid =
+    form.email.trim().length > 0 &&
+    form.email.trim().length <= MAX_EMAIL_LEN &&
+    EMAIL_REGEX.test(form.email.trim()) &&
+    form.password.length > 0 &&
+    form.password.length <= MAX_PASSWORD_LEN;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -31,13 +49,23 @@ export default function LoginPage() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
+  // Validate a field as soon as the user leaves it, instead of only on submit.
+ const handleBlur = (e) => {
+  const { name } = e.target;
+  const errs = validate();
+  setErrors((prev) => ({ ...prev, [name]: errs[name] || "" }));
+};
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+  e.preventDefault();
+  const errs = validate();
+  if (Object.keys(errs).length) {
+    setErrors(errs);
+    return;
+  }
 
     setIsLoading(true);
-    const result = await login({ email: form.email, password: form.password });
+    const result = await login({ email: form.email.trim(), password: form.password });
     setIsLoading(false);
 
     if (result.success) {
@@ -80,6 +108,8 @@ export default function LoginPage() {
               autoComplete="email"
               value={form.email}
               onChange={handleChange}
+              onBlur={handleBlur}
+              maxLength={MAX_EMAIL_LEN}
               placeholder="you@example.com"
               className={`auth-input${errors.email ? " auth-input--error" : ""}`}
             />
@@ -101,6 +131,8 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={form.password}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                maxLength={MAX_PASSWORD_LEN}
                 placeholder="••••••••"
                 className={`auth-input auth-input--has-icon${errors.password ? " auth-input--error" : ""}`}
               />
@@ -116,7 +148,7 @@ export default function LoginPage() {
             {errors.password && <span className="auth-error">{errors.password}</span>}
           </div>
 
-          <button type="submit" className="auth-btn" disabled={isLoading}>
+          <button type="submit" className="auth-btn" disabled={isLoading || !isFormValid}>
             {isLoading ? (
               <>
                 <Loader2 size={16} className="auth-btn__spinner" />

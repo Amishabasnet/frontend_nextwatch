@@ -27,6 +27,7 @@ import AdminLayout         from "./pages/admin/AdminLayout";
 import AdminDashboardPage  from "./pages/admin/AdminDashboardPage";
 import AdminMoviesPage     from "./pages/admin/AdminMoviesPage";
 import AdminUsersPage      from "./pages/admin/AdminUsersPage";
+import AdminFeaturedPage   from "./pages/admin/AdminFeaturedPage";
 import NotFoundPage        from "./pages/NotFoundPage";
 import "./pages/landing/LandingPage.css";
 
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="movies"    element={<AdminMoviesPage />} />
             <Route path="users"     element={<AdminUsersPage />} />
+            <Route path="featured"  element={<AdminFeaturedPage />} />
           </Route>
         </Route>
 

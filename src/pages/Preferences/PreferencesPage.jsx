@@ -5,6 +5,7 @@ import { ArrowRight, Heart, X, Shield, CheckCircle2, Loader2 } from "lucide-reac
 import { useAuth } from "../../hooks/useAuth";
 import BackButton from "../../components/BackButton";
 import { getPreferences, putPreferences } from "../../services/api";
+import { clearDashboardCache } from "../../utils/dashboardCache";
 import GenreBadge from "../../components/GenreBadge";
 import "./PreferencesPage.css";
 
@@ -101,6 +102,8 @@ export default function PreferencesPage() {
         favoriteGenres,
         excludedGenres: dislikedGenres,
       });
+      // Dashboard's cached genre rows/badges are now stale — force a refetch
+      clearDashboardCache();
       toast.success("Preferences saved successfully.");
       navigate("/dashboard", { replace: true });
     } catch {

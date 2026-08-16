@@ -125,7 +125,7 @@ export const postMood      = (payload) => api.post("/mood", payload);
 export const getMoods      = (_userId, params) => api.get("/mood", { params });
 export const getLatestMood = () => api.get("/mood/latest");
 
-export const getRecommendations = (userId) => api.get(`/recommendations/${userId}`);
+export const getRecommendations = (userId, params) => api.get(`/recommendations/${userId}`, { params });
 
 export const getHistory        = (_userId, params) => api.get("/history", { params });
 export const getHistoryByUser  = (_userId, params) => api.get("/history", { params });
@@ -137,10 +137,17 @@ export const deleteHistory     = () => api.delete("/history/clear");
 export const getMovies    = (params)  => api.get("/movies", { params });
 export const getTopRatedMovies = (params) => api.get("/movies/top-rated", { params });
 export const getMovieById = (id)      => api.get(`/movies/${id}`);
+export const getRelatedMovies = (id, params) => api.get(`/movies/${id}/related`, { params });
 export const searchMovies = (params, config = {}) => api.get("/movies/search", { params, ...config });
 export const createMovie  = (payload) => api.post("/movies", payload);
 export const updateMovie  = (id, payload) => api.put(`/movies/${id}`, payload);
 export const deleteMovie  = (id)      => api.delete(`/movies/${id}`);
+
+// ── Featured movies (homepage spotlight) ──
+export const getAllFeaturesAdmin = () => api.get("/features/admin/all");
+export const addFeaturedMovie    = (payload) => api.post("/features", payload);
+export const updateFeature       = (id, payload) => api.put(`/features/${id}`, payload);
+export const removeFeature       = (id) => api.delete(`/features/${id}`);
 
 export const getWatchlist       = (params)   => api.get("/watchlist", { params });
 export const getWatchlistByUser = (_userId, params) => api.get("/watchlist", { params });
