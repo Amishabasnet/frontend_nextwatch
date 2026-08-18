@@ -25,7 +25,8 @@ import {
 
 import PreferencesPage from "../pages/Preferences/PreferencesPage";
 
-/* ---------------- MOCK AUTH ---------------- */
+
+  //  MOCK AUTH
 
 vi.mock("../hooks/useAuth", () => ({
   useAuth: vi.fn(),
@@ -33,7 +34,7 @@ vi.mock("../hooks/useAuth", () => ({
 
 import { useAuth } from "../hooks/useAuth";
 
-/* ---------------- MOCK API ---------------- */
+  //  MOCK API
 
 vi.mock("../services/api", () => ({
   getPreferences: vi.fn(),
@@ -46,7 +47,7 @@ import {
   putPreferences,
 } from "../services/api";
 
-/* ---------------- RENDER HELPER ---------------- */
+  //  RENDER HELPER
 
 function renderPreferences() {
   return render(
@@ -71,270 +72,261 @@ function renderPreferences() {
   );
 }
 
-/* ---------------- TESTS ---------------- */
+  //  TEST SUITE
 
-describe("NextWatch Genre Preferences White-Box Tests", () => {
+describe(
+  "NextWatch Genre Preferences White-Box Tests",
+  () => {
 
-  beforeEach(() => {
-    vi.clearAllMocks();
+    beforeEach(() => {
+      vi.clearAllMocks();
 
-    useAuth.mockReturnValue({
-      user: {
-        id: "user-1",
-        username: "testuser",
-        email: "test@example.com",
-        role: "user",
-      },
-      isAuthenticated: true,
-    });
-
-    getPreferences.mockResolvedValue({
-      favoriteGenres: [],
-      excludedGenres: [],
-    });
-
-    putPreferences.mockResolvedValue({
-      success: true,
-    });
-  });
-
-  afterEach(() => {
-    cleanup();
-    vi.restoreAllMocks();
-  });
-
-
-  /* ========================================
-     PREF-01
-     Load preferences
-  ======================================== */
-
-  it("loads genre preference page successfully", async () => {
-
-    renderPreferences();
-
-    await waitFor(() => {
-      expect(getPreferences).toHaveBeenCalled();
-    });
-
-  });
-
-
-  /* ========================================
-     PREF-02
-     Existing favorite genre
-  ======================================== */
-
-  it("preloads existing favorite genre", async () => {
-
-    getPreferences.mockResolvedValue({
-      favoriteGenres: ["Action"],
-      excludedGenres: [],
-    });
-
-    renderPreferences();
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("Action")
-      ).toBeTruthy();
-    });
-
-  });
-
-
-  /* ========================================
-     PREF-03
-     Select favorite genre
-  ======================================== */
-
-  it("allows user to select a favorite genre", async () => {
-
-    renderPreferences();
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("Action")
-      ).toBeTruthy();
-    });
-
-    const actionGenre =
-      screen.getByText("Action");
-
-    fireEvent.click(actionGenre);
-
-    expect(actionGenre).toBeTruthy();
-
-  });
-
-
-  /* ========================================
-     PREF-04
-     Exclude genre
-  ======================================== */
-
-  it("allows user to mark a genre as excluded", async () => {
-
-    renderPreferences();
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("Horror")
-      ).toBeTruthy();
-    });
-
-    const horrorGenre =
-      screen.getByText("Horror");
-
-    /*
-      First click = favorite
-      Second click = excluded/disliked
-      depending on component implementation
-    */
-
-    fireEvent.click(horrorGenre);
-    fireEvent.click(horrorGenre);
-
-    expect(horrorGenre).toBeTruthy();
-
-  });
-
-
-  /* ========================================
-     PREF-05
-     Favorite/excluded conflict
-  ======================================== */
-
-  it("handles genre state change without duplicate preference state", async () => {
-
-    getPreferences.mockResolvedValue({
-      favoriteGenres: ["Action"],
-      excludedGenres: [],
-    });
-
-    renderPreferences();
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("Action")
-      ).toBeTruthy();
-    });
-
-    const actionGenre =
-      screen.getByText("Action");
-
-    fireEvent.click(actionGenre);
-
-    expect(actionGenre).toBeTruthy();
-
-  });
-
-
-  /* ========================================
-     PREF-06
-     Save preferences
-  ======================================== */
-
-  it("saves selected genre preferences", async () => {
-
-    renderPreferences();
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("Action")
-      ).toBeTruthy();
-    });
-
-    fireEvent.click(
-      screen.getByText("Action")
-    );
-
-    const saveButton =
-      screen.getByRole("button", {
-        name: /save/i,
+      useAuth.mockReturnValue({
+        user: {
+          id: "user-1",
+          username: "testuser",
+          email: "test@example.com",
+          role: "user",
+        },
+        isAuthenticated: true,
       });
 
-    fireEvent.click(saveButton);
+      getPreferences.mockResolvedValue({
+        favoriteGenres: [],
+        excludedGenres: [],
+      });
 
-    await waitFor(() => {
-      expect(
-        putPreferences
-      ).toHaveBeenCalled();
+      putPreferences.mockResolvedValue({
+        success: true,
+      });
     });
 
-  });
-
-
-  /* ========================================
-     PREF-07
-     Favorite genres payload
-  ======================================== */
-
-  it("sends selected favorite genre when preferences are saved", async () => {
-
-    renderPreferences();
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("Comedy")
-      ).toBeTruthy();
+    afterEach(() => {
+      cleanup();
+      vi.restoreAllMocks();
     });
 
-    fireEvent.click(
-      screen.getByText("Comedy")
+      //  PREF-01 Load page
+
+    it(
+      "loads genre preference page successfully",
+      async () => {
+
+        renderPreferences();
+
+        await waitFor(() => {
+          expect(
+            getPreferences
+          ).toHaveBeenCalled();
+        });
+      }
     );
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: /save/i,
-      })
+      //  PREF-02  Existing preference
+
+    it(
+      "preloads existing favorite genre",
+      async () => {
+
+        getPreferences.mockResolvedValue({
+          favoriteGenres: ["Action"],
+          excludedGenres: [],
+        });
+
+        renderPreferences();
+
+        await waitFor(() => {
+          expect(
+            screen.getByText("Action")
+          ).toBeTruthy();
+        });
+      }
     );
 
-   await waitFor(() => {
-  expect(
-    putPreferences
-  ).toHaveBeenCalled();
-});
+      //  PREF-03 Favorite selection
+    it(
+      "allows user to select a favorite genre",
+      async () => {
 
-expect(
-  putPreferences
-).toHaveBeenCalledWith(
-  "user-1",
-  {
-    favoriteGenres: ["Comedy"],
-    excludedGenres: [],
+        renderPreferences();
+
+        await waitFor(() => {
+          expect(
+            screen.getByText("Action")
+          ).toBeTruthy();
+        });
+
+        const actionGenre =
+          screen.getByText("Action");
+
+        fireEvent.click(actionGenre);
+
+        expect(
+          actionGenre
+        ).toBeTruthy();
+      }
+    );
+
+      //  PREF-04 Excluded selection
+
+    it(
+      "allows user to mark a genre as excluded",
+      async () => {
+
+        renderPreferences();
+
+        await waitFor(() => {
+          expect(
+            screen.getByText("Horror")
+          ).toBeTruthy();
+        });
+
+        const horrorGenre =
+          screen.getByText("Horror");
+
+        fireEvent.click(horrorGenre);
+        fireEvent.click(horrorGenre);
+
+        expect(
+          horrorGenre
+        ).toBeTruthy();
+      }
+    );
+
+
+      //  PREF-05 State conflict
+  
+    it(
+      "handles genre state change without duplicate preference state",
+      async () => {
+
+        getPreferences.mockResolvedValue({
+          favoriteGenres: ["Action"],
+          excludedGenres: [],
+        });
+
+        renderPreferences();
+
+        await waitFor(() => {
+          expect(
+            screen.getByText("Action")
+          ).toBeTruthy();
+        });
+
+        const actionGenre =
+          screen.getByText("Action");
+
+        fireEvent.click(actionGenre);
+
+        expect(
+          actionGenre
+        ).toBeTruthy();
+      }
+    );
+
+       // PREF-06 Save preferences
+
+    it(
+      "saves selected genre preferences",
+      async () => {
+
+        renderPreferences();
+
+        await waitFor(() => {
+          expect(
+            screen.getByText("Action")
+          ).toBeTruthy();
+        });
+
+        fireEvent.click(
+          screen.getByText("Action")
+        );
+
+        const saveButton =
+          screen.getByRole(
+            "button",
+            {
+              name: /save/i,
+            }
+          );
+
+        fireEvent.click(saveButton);
+
+        await waitFor(() => {
+          expect(
+            putPreferences
+          ).toHaveBeenCalled();
+        });
+      }
+    );
+
+       // PREF-07 Correct API payload
+    it(
+      "sends selected favorite genre when preferences are saved",
+      async () => {
+
+        renderPreferences();
+
+        await waitFor(() => {
+          expect(
+            screen.getByText("Comedy")
+          ).toBeTruthy();
+        });
+
+        fireEvent.click(
+          screen.getByText("Comedy")
+        );
+
+        fireEvent.click(
+          screen.getByRole(
+            "button",
+            {
+              name: /save/i,
+            }
+          )
+        );
+
+        await waitFor(() => {
+          expect(
+            putPreferences
+          ).toHaveBeenCalled();
+        });
+
+        expect(
+          putPreferences
+        ).toHaveBeenCalledWith(
+          "user-1",
+          {
+            favoriteGenres: ["Comedy"],
+            excludedGenres: [],
+          }
+        );
+      }
+    );
+
+    // PREF-08 404 / not configured
+    it(
+      "handles preferences not configured response without crashing",
+      async () => {
+
+        getPreferences.mockRejectedValue({
+          response: {
+            status: 404,
+          },
+        });
+
+        renderPreferences();
+
+        await waitFor(() => {
+          expect(
+            getPreferences
+          ).toHaveBeenCalled();
+        });
+
+        expect(
+          document.body
+        ).toBeTruthy();
+      }
+    );
   }
 );
-
-  });
-
-
-  /* ========================================
-     PREF-08
-     Preferences not configured
-  ======================================== */
-
-  it("handles preferences not configured response without crashing", async () => {
-
-    getPreferences.mockRejectedValue({
-      response: {
-        status: 404,
-      },
-    });
-
-    renderPreferences();
-
-    await waitFor(() => {
-      expect(
-        getPreferences
-      ).toHaveBeenCalled();
-    });
-
-
-    expect(
-      document.body
-    ).toBeTruthy();
-
-  });
-
-});

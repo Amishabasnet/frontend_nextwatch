@@ -25,9 +25,7 @@ import {
 
 import MoodPage from "../pages/mood/MoodPage";
 
-/* ==============================
-   MOCK AUTH
-============================== */
+// MOCK AUTH
 
 vi.mock("../hooks/useAuth", () => ({
   useAuth: vi.fn(),
@@ -35,9 +33,7 @@ vi.mock("../hooks/useAuth", () => ({
 
 import { useAuth } from "../hooks/useAuth";
 
-/* ==============================
-   MOCK API
-============================== */
+// MOCK API
 
 vi.mock("../services/api", () => ({
   getLatestMood: vi.fn(),
@@ -51,9 +47,7 @@ import {
   postMood,
 } from "../services/api";
 
-/* ==============================
-   RENDER HELPER
-============================== */
+// RENDER HELPER
 
 function renderMood() {
   return render(
@@ -78,9 +72,7 @@ function renderMood() {
   );
 }
 
-/* ==============================
-   TEST SUITE
-============================== */
+// TEST SUITE
 
 describe(
   "NextWatch Mood Selection White-Box Tests",
@@ -120,14 +112,12 @@ describe(
       vi.restoreAllMocks();
     });
 
-    /* ==========================
-       MOOD-01
-       Load page
-    ========================== */
+    // MOOD-01
 
     it(
       "loads mood selection page successfully",
       async () => {
+
         renderMood();
 
         await waitFor(() => {
@@ -142,14 +132,12 @@ describe(
       }
     );
 
-    /* ==========================
-       MOOD-02
-       Display moods
-    ========================== */
+    // MOOD-02
 
     it(
       "displays available mood options",
       async () => {
+
         renderMood();
 
         await waitFor(() => {
@@ -168,14 +156,12 @@ describe(
       }
     );
 
-    /* ==========================
-       MOOD-03
-       Select mood
-    ========================== */
+    // MOOD-03
 
     it(
       "allows user to select a mood",
       async () => {
+
         renderMood();
 
         await waitFor(() => {
@@ -195,14 +181,12 @@ describe(
       }
     );
 
-    /* ==========================
-       MOOD-04
-       Change mood
-    ========================== */
+    // MOOD-04
 
     it(
       "allows current mood selection to change",
       async () => {
+
         renderMood();
 
         await waitFor(() => {
@@ -229,14 +213,12 @@ describe(
       }
     );
 
-    /* ==========================
-       MOOD-05
-       Empty submission
-    ========================== */
+    // MOOD-05
 
     it(
       "does not submit mood when no mood is selected",
       async () => {
+
         renderMood();
 
         await waitFor(() => {
@@ -264,14 +246,12 @@ describe(
       }
     );
 
-    /* ==========================
-       MOOD-06
-       Submit selected mood
-    ========================== */
+    // MOOD-06
 
     it(
       "submits selected mood to API",
       async () => {
+
         renderMood();
 
         await waitFor(() => {
@@ -303,14 +283,12 @@ describe(
       }
     );
 
-    /* ==========================
-       MOOD-07
-       Correct payload
-    ========================== */
+    // MOOD-07
 
     it(
       "sends selected mood value in request",
       async () => {
+
         renderMood();
 
         await waitFor(() => {
@@ -350,55 +328,52 @@ describe(
       }
     );
 
-    /* ==========================
-   MOOD-08
-   Restore latest mood
-========================== */
+    // MOOD-08
 
-it(
-  "loads previously selected mood when available",
-  async () => {
+    it(
+      "loads previously selected mood when available",
+      async () => {
 
-    getLatestMood.mockResolvedValue({
-      data: {
-        mood: "Romantic",
-        createdAt:
-          "2026-08-18T10:00:00.000Z",
-      },
-    });
+        getLatestMood.mockResolvedValue({
+          data: {
+            mood: "Romantic",
+            createdAt:
+              "2026-08-18T10:00:00.000Z",
+          },
+        });
 
-    getMoods.mockResolvedValue({
-      data: [
-        {
-          id: "mood-1",
-          mood: "Romantic",
-          createdAt:
-            "2026-08-18T10:00:00.000Z",
-        },
-      ],
-    });
+        getMoods.mockResolvedValue({
+          data: [
+            {
+              id: "mood-1",
+              mood: "Romantic",
+              createdAt:
+                "2026-08-18T10:00:00.000Z",
+            },
+          ],
+        });
 
-    renderMood();
+        renderMood();
 
-    await waitFor(() => {
-      expect(
-        getLatestMood
-      ).toHaveBeenCalledWith("user-1");
+        await waitFor(() => {
+          expect(
+            getLatestMood
+          ).toHaveBeenCalledWith("user-1");
 
-      expect(
-        getMoods
-      ).toHaveBeenCalledWith("user-1");
-    });
+          expect(
+            getMoods
+          ).toHaveBeenCalledWith("user-1");
+        });
 
-    await waitFor(() => {
-      const romanticElements =
-        screen.getAllByText("Romantic");
+        await waitFor(() => {
+          const romanticElements =
+            screen.getAllByText("Romantic");
 
-      expect(
-        romanticElements.length
-      ).toBeGreaterThan(0);
-    });
-  }
-);
+          expect(
+            romanticElements.length
+          ).toBeGreaterThan(0);
+        });
+      }
+    );
   }
 );

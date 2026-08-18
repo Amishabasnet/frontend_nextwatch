@@ -25,9 +25,7 @@ import {
 
 import HistoryPage from "../pages/history/HistoryPage";
 
-/* ==============================
-   MOCK AUTH
-============================== */
+//    MOCK AUTH
 
 vi.mock("../hooks/useAuth", () => ({
   useAuth: vi.fn(),
@@ -35,9 +33,7 @@ vi.mock("../hooks/useAuth", () => ({
 
 import { useAuth } from "../hooks/useAuth";
 
-/* ==============================
-   MOCK API
-============================== */
+//    MOCK API
 
 vi.mock("../services/api", () => ({
   getHistory: vi.fn(),
@@ -53,9 +49,7 @@ import {
   updateHistory,
 } from "../services/api";
 
-/* ==============================
-   RENDER HELPER
-============================== */
+//RENDER HELP
 
 function renderHistory() {
   return render(
@@ -80,9 +74,7 @@ function renderHistory() {
   );
 }
 
-/* ==============================
-   MOCK HISTORY DATA
-============================== */
+// MOCK HISTORY DATA
 
 const historyItem = {
   id: "history-1",
@@ -101,9 +93,7 @@ const historyItem = {
   createdAt: "2026-08-10T10:00:00.000Z",
 };
 
-/* ==============================
-   TEST SUITE
-============================== */
+// TEST SUITE
 
 describe(
   "NextWatch Viewing History White-Box Tests",
@@ -149,10 +139,9 @@ describe(
       vi.restoreAllMocks();
     });
 
-    /* ==========================
-       HISTORY-01
-       Load history
-    ========================== */
+
+    //    HISTORY-01 Load history
+
 
     it(
       "loads viewing history successfully",
@@ -167,10 +156,7 @@ describe(
       }
     );
 
-    /* ==========================
-       HISTORY-02
-       Display movie data
-    ========================== */
+    //    HISTORY-02 Display movie data
 
     it(
       "displays movie from viewing history",
@@ -211,10 +197,7 @@ it(
   }
 );
 
-    /* ==========================
-       HISTORY-04
-       Empty history
-    ========================== */
+    //    HISTORY-04
 
     it(
       "handles empty viewing history",
@@ -236,10 +219,6 @@ it(
           ).toHaveBeenCalled();
         });
 
-        /*
-          The page should remain rendered
-          without crashing.
-        */
 
         expect(
           document.body
@@ -247,10 +226,7 @@ it(
       }
     );
 
-    /* ==========================
-       HISTORY-05
-       API failure
-    ========================== */
+   // History-05
 
     it(
       "handles history API failure without crashing",
@@ -273,10 +249,7 @@ it(
       }
     );
 
-    /* ==========================
-       HISTORY-06
-       Remove using movie ID
-    ========================== */
+    //    HISTORY-06
 
     it(
       "removes individual history entry using movie id",
@@ -329,11 +302,7 @@ it(
       }
     );
 
-    /* ==========================
-       HISTORY-07
-       Clear history
-    ========================== */
-
+    //    HISTORY-07
     it(
       "supports clear all history action",
       async () => {
@@ -377,10 +346,7 @@ it(
       }
     );
 
-    /* ==========================
-       HISTORY-08
-       Nested/null movie data
-    ========================== */
+    //    HISTORY-08
 
     it(
       "handles history entry with missing movie data safely",

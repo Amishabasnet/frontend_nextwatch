@@ -24,20 +24,15 @@ import {
 
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 
-/* ==============================
-   MOCK AUTH
-============================== */
 
+// MOCK AUTH
 vi.mock("../hooks/useAuth", () => ({
   useAuth: vi.fn(),
 }));
 
 import { useAuth } from "../hooks/useAuth";
 
-/* ==============================
-   MOCK API
-============================== */
-
+// MOCK API
 vi.mock("../services/api", () => ({
   getAdminDashboard: vi.fn(),
 }));
@@ -46,10 +41,7 @@ import {
   getAdminDashboard,
 } from "../services/api";
 
-/* ==============================
-   DASHBOARD MOCK DATA
-============================== */
-
+// DASHBOARD MOCK DATA
 const dashboardData = {
   totals: {
     totalUsers: 7,
@@ -109,10 +101,7 @@ const dashboardData = {
     "2026-08-18T10:00:00.000Z",
 };
 
-/* ==============================
-   RENDER HELPER
-============================== */
-
+// RENDER HELPER
 function renderAdminDashboard() {
   return render(
     <MemoryRouter
@@ -143,9 +132,7 @@ function renderAdminDashboard() {
   );
 }
 
-/* ==============================
-   TEST SUITE
-============================== */
+//  TEST SUITE
 
 describe(
   "NextWatch Admin Dashboard White-Box Tests",
@@ -176,10 +163,9 @@ describe(
       vi.restoreAllMocks();
     });
 
-    /* ==========================
-       ADMIN-01
-       API call
-    ========================== */
+    
+    //    ADMIN-01
+    //    API call
 
     it(
       "loads admin dashboard data from API",
@@ -195,11 +181,8 @@ describe(
       }
     );
 
-    /* ==========================
-       ADMIN-02
-       User total
-    ========================== */
-
+    //    ADMIN-02
+    //    User total
     it(
       "displays total number of users",
       async () => {
@@ -214,10 +197,8 @@ describe(
       }
     );
 
-    /* ==========================
-       ADMIN-03
-       Movie and rating totals
-    ========================== */
+    //    ADMIN-03
+    //    Movie and rating totals
 
     it(
       "displays movie and rating statistics",
@@ -237,10 +218,8 @@ describe(
       }
     );
 
-    /* ==========================
-   ADMIN-04
-   Mood analytics section
-========================== */
+//    ADMIN-04
+//    Mood analytics section
 
 it(
   "displays the most selected moods analytics section",
@@ -260,10 +239,8 @@ it(
   }
 );
 
-    /* ==========================
-       ADMIN-05
-       Most watched genre
-    ========================== */
+    //    ADMIN-05
+    //    Most watched genre
 
     it(
       "displays most watched genre",
@@ -279,10 +256,8 @@ it(
       }
     );
 
-    /* ==========================
-       ADMIN-06
-       Active users
-    ========================== */
+    //    ADMIN-06
+    //    Active users
 
     it(
       "displays active users and engagement data",
@@ -302,10 +277,8 @@ it(
       }
     );
 
-    /* ==========================
-       ADMIN-07
-       Zero-value branch
-    ========================== */
+    //    ADMIN-07
+    //    Zero-value branch
 
     it(
       "handles zero-value dashboard statistics",
@@ -368,10 +341,8 @@ it(
       }
     );
 
-    /* ==========================
-       ADMIN-08
-       API error branch
-    ========================== */
+    //    ADMIN-08
+    //    API error branch
 
     it(
       "handles admin dashboard API failure without crashing",
