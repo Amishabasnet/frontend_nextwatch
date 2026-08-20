@@ -126,6 +126,7 @@ export const getMoods      = (_userId, params) => api.get("/mood", { params });
 export const getLatestMood = () => api.get("/mood/latest");
 
 export const getRecommendations = (userId, params) => api.get(`/recommendations/${userId}`, { params });
+export const postRecommendationFeedback = (payload) => api.post("/recommendations/feedback", payload);
 
 export const getHistory        = (_userId, params) => api.get("/history", { params });
 export const getHistoryByUser  = (_userId, params) => api.get("/history", { params });
@@ -144,6 +145,7 @@ export const updateMovie  = (id, payload) => api.put(`/movies/${id}`, payload);
 export const deleteMovie  = (id)      => api.delete(`/movies/${id}`);
 
 // ── Featured movies (homepage spotlight) ──
+export const getFeaturedMovies    = () => api.get("/features");
 export const getAllFeaturesAdmin = () => api.get("/features/admin/all");
 export const addFeaturedMovie    = (payload) => api.post("/features", payload);
 export const updateFeature       = (id, payload) => api.put(`/features/${id}`, payload);
@@ -175,4 +177,3 @@ export const createAdminUser       = (payload) => api.post("/admin/users", paylo
 export const updateAdminUserRole   = (id, role)   => api.patch(`/admin/users/${id}/role`, { role });
 export const updateAdminUserStatus = (id, status) => api.patch(`/admin/users/${id}/status`, { status });
 export const deleteAdminUser       = (id) => api.delete(`/admin/users/${id}`);
-

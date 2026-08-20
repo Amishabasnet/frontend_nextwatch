@@ -4,10 +4,13 @@ import { toast } from "react-toastify";
 import {
   Clapperboard, Sparkles, RefreshCw, Star, Bookmark, BookmarkCheck,
   Eye, HelpCircle, X, AlertCircle, Compass, Loader2, SmilePlus,
-  LogOut, TrendingUp, ArrowLeft,
+  LogOut, TrendingUp, ArrowLeft, ThumbsUp, ThumbsDown,
   Smile, Frown, Leaf, PartyPopper, Meh, Heart, Ghost, Flame, Hourglass,
 } from "lucide-react";
-import { getRecommendations, postWatchlist, deleteWatchlist, getWatchlist, getMovieById } from "../../services/api";
+import {
+  getRecommendations, postWatchlist, deleteWatchlist, getWatchlist, getMovieById,
+  postRecommendationFeedback,
+} from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import "../../components/BackButton/BackButton.css";
 import "./RecommendationPage.css";
@@ -87,6 +90,7 @@ export default function RecommendationsPage() {
   const [source, setSource] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [watchlist, setWatchlist] = useState(new Set());
+  const [feedback, setFeedback] = useState({}); // movieId -> { liked, disliked }
   const [activeMovie, setActiveMovie] = useState(null);
   const [detailsMovie, setDetailsMovie] = useState(null);   // basic card data, shown immediately
   const [detailsFull, setDetailsFull] = useState(null);     // full record once fetched
@@ -186,6 +190,9 @@ export default function RecommendationsPage() {
         await postWatchlist({ movieId: id });
         toast.success(`Added "${title}" to Watchlist`);
       }
+      // Saving to a watchlist is a strong "I'm interested" signal — log it
+      // as a click even though the user never opened the details modal.
+      postRecommendationFeedback({ movieId: id, clicked: true }).catch(() => {});
     } catch {
       // revert on failure
       setWatchlist((prev) => {
@@ -197,11 +204,34 @@ export default function RecommendationsPage() {
     }
   }, [watchlist]);
 
+  // Thumbs up/down on a recommendation. Optimistic UI update; clicking the
+  // already-active choice clears it (un-like / un-dislike) instead of
+  // toggling straight to the opposite, since "neither" is a valid state.
+  const handleFeedback = useCallback((id, type) => {
+    setFeedback((prev) => {
+      const current = prev[id] ?? {};
+      const isActive = current[type];
+      const next = {
+        liked: type === "liked" ? !isActive : false,
+        disliked: type === "disliked" ? !isActive : false,
+      };
+      postRecommendationFeedback({ movieId: id, ...next }).catch(() => {
+        // Revert this one entry on failure without disturbing others.
+        setFeedback((p) => ({ ...p, [id]: current }));
+        toast.error("Couldn't save your feedback");
+      });
+      return { ...prev, [id]: next };
+    });
+  }, []);
+
   const handleViewDetails = useCallback(async (id) => {
     const basic = items.find((m) => m.id === id) ?? null;
     setDetailsMovie(basic);
     setDetailsFull(null);
     setDetailsLoading(true);
+    // Opening the details modal is a real interaction, not just a hover —
+    // log it as a click, fire-and-forget so it never blocks the UI.
+    postRecommendationFeedback({ movieId: id, clicked: true }).catch(() => {});
     try {
       const res = await getMovieById(id);
       setDetailsFull(res.data);
@@ -319,6 +349,8 @@ export default function RecommendationsPage() {
                 key={movie.id}
                 movie={movie}
                 isInWatchlist={watchlist.has(movie.id)}
+                feedback={feedback[movie.id]}
+                onFeedback={handleFeedback}
                 onAddToWatchlist={handleAddToWatchlist}
                 onViewDetails={handleViewDetails}
                 onWhyRecommended={setActiveMovie}
@@ -338,6 +370,8 @@ export default function RecommendationsPage() {
           full={detailsFull}
           loading={detailsLoading}
           isInWatchlist={watchlist.has(detailsMovie.id)}
+          feedback={feedback[detailsMovie.id]}
+          onFeedback={handleFeedback}
           onAddToWatchlist={handleAddToWatchlist}
           onClose={() => { setDetailsMovie(null); setDetailsFull(null); }}
         />
@@ -346,13 +380,15 @@ export default function RecommendationsPage() {
   );
 }
 
-function RecommendationCard({ movie, isInWatchlist, onAddToWatchlist, onViewDetails, onWhyRecommended }) {
+function RecommendationCard({ movie, isInWatchlist, feedback, onFeedback, onAddToWatchlist, onViewDetails, onWhyRecommended }) {
   const [imgError, setImgError] = useState(false);
   const { id, title, posterUrl, genres, rating, releaseYear, score, reason } = movie;
   const ratingDisplay = rating > 0 ? rating.toFixed(1) : null;
   const scorePercent = formatScorePercent(score);
   const hasPoster = posterUrl && !imgError;
   const visibleGenres = genres.slice(0, 3);
+  const isLiked = !!feedback?.liked;
+  const isDisliked = !!feedback?.disliked;
 
   return (
     <article className="recs-card">
@@ -370,6 +406,26 @@ function RecommendationCard({ movie, isInWatchlist, onAddToWatchlist, onViewDeta
           </div>
         )}
         {releaseYear && <div className="recs-badge recs-badge--year">{releaseYear}</div>}
+        <div className="recs-feedback-row">
+          <button
+            type="button"
+            className={`recs-feedback-btn recs-feedback-btn--like ${isLiked ? "is-active" : ""}`}
+            onClick={() => onFeedback(id, "liked")}
+            aria-label={isLiked ? "Remove like" : "Like this recommendation"}
+            aria-pressed={isLiked}
+          >
+            <ThumbsUp size={13} strokeWidth={2.2} />
+          </button>
+          <button
+            type="button"
+            className={`recs-feedback-btn recs-feedback-btn--dislike ${isDisliked ? "is-active" : ""}`}
+            onClick={() => onFeedback(id, "disliked")}
+            aria-label={isDisliked ? "Remove dislike" : "Dislike this recommendation"}
+            aria-pressed={isDisliked}
+          >
+            <ThumbsDown size={13} strokeWidth={2.2} />
+          </button>
+        </div>
       </div>
 
       <div className="recs-card-body">
@@ -434,7 +490,7 @@ function WhyRecommendedModal({ movie, onClose }) {
   );
 }
 
-function MovieDetailsModal({ basic, full, loading, isInWatchlist, onAddToWatchlist, onClose }) {
+function MovieDetailsModal({ basic, full, loading, isInWatchlist, feedback, onFeedback, onAddToWatchlist, onClose }) {
   const [imgError, setImgError] = useState(false);
   const movie = { ...basic, ...(full ?? {}) };
   const title = movie.title ?? "Untitled";
@@ -444,6 +500,8 @@ function MovieDetailsModal({ basic, full, loading, isInWatchlist, onAddToWatchli
   const releaseYear = movie.releaseYear ?? basic.releaseYear ?? null;
   const contentType = movie.contentType ?? basic.contentType ?? null;
   const hasPoster = posterUrl && !imgError;
+  const isLiked = !!feedback?.liked;
+  const isDisliked = !!feedback?.disliked;
 
   return (
     <div className="recs-modal-backdrop" onClick={onClose}>
@@ -462,7 +520,29 @@ function MovieDetailsModal({ basic, full, loading, isInWatchlist, onAddToWatchli
           </div>
 
           <div className="recs-details-info">
-            <h2 className="recs-modal-title" style={{ textAlign: "left" }}>{title}</h2>
+            <div className="recs-details-title-row">
+              <h2 className="recs-modal-title" style={{ textAlign: "left" }}>{title}</h2>
+              <div className="recs-feedback-row recs-feedback-row--inline">
+                <button
+                  type="button"
+                  className={`recs-feedback-btn recs-feedback-btn--like ${isLiked ? "is-active" : ""}`}
+                  onClick={() => onFeedback(basic.id, "liked")}
+                  aria-label={isLiked ? "Remove like" : "Like this recommendation"}
+                  aria-pressed={isLiked}
+                >
+                  <ThumbsUp size={14} strokeWidth={2.2} />
+                </button>
+                <button
+                  type="button"
+                  className={`recs-feedback-btn recs-feedback-btn--dislike ${isDisliked ? "is-active" : ""}`}
+                  onClick={() => onFeedback(basic.id, "disliked")}
+                  aria-label={isDisliked ? "Remove dislike" : "Dislike this recommendation"}
+                  aria-pressed={isDisliked}
+                >
+                  <ThumbsDown size={14} strokeWidth={2.2} />
+                </button>
+              </div>
+            </div>
 
             <div className="recs-details-meta">
               {rating > 0 && (
