@@ -306,6 +306,51 @@
   font-weight: 600;
 }
 
+.recs-feedback-row {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+}
+.recs-feedback-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+}
+.recs-feedback-btn:hover { transform: translateY(-1px); }
+.recs-feedback-btn--like:hover,
+.recs-feedback-btn--like.is-active {
+  background: rgba(52, 211, 153, 0.22);
+  border-color: rgba(52, 211, 153, 0.5);
+  color: #34d399;
+}
+.recs-feedback-btn--dislike:hover,
+.recs-feedback-btn--dislike.is-active {
+  background: rgba(248, 113, 113, 0.22);
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #f87171;
+}
+.recs-feedback-row--inline {
+  position: static;
+  flex-shrink: 0;
+}
+.recs-details-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .recs-card-body {
   display: flex;
   flex-direction: column;

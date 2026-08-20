@@ -6,11 +6,12 @@ import {
   Clapperboard, TrendingUp, Clock, Sparkles,
   Star, SmilePlus, ListChecks, LogOut, Loader2, User, Settings,
   Search, SlidersHorizontal, X, RotateCcw, ShieldCheck,
+  Play, Bookmark, BookmarkCheck, Flame,
 } from "lucide-react";
 import {
   getLatestMood, getPreferences, getHistory,
   getRecommendations, getMovies, getTopRatedMovies, searchMovies,
-  postWatchlist, deleteWatchlist, getWatchlist,
+  postWatchlist, deleteWatchlist, getWatchlist, getFeaturedMovies,
 } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import MoodBadge, { MOOD_CONFIG } from "../../components/MoodBadge";
@@ -104,6 +105,23 @@ function normalizeRecommendations(data) {
   };
 }
 
+function normalizeFeatured(data) {
+  const list = Array.isArray(data) ? data : data?.features ?? data?.items ?? [];
+  return list
+    .map((entry) => {
+      const movie = normalizeMovie(entry.movie ?? entry);
+      if (!movie) return null;
+      return {
+        featureId: entry.featureId ?? entry._id ?? entry.id ?? movie.id,
+        label: entry.label ?? "Featured",
+        priority: entry.priority ?? 0,
+        movie,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.priority - a.priority);
+}
+
 function getCachedDashboardState() {
   if (typeof window === "undefined") return null;
   try {
@@ -189,6 +207,8 @@ export default function DashboardPage() {
   const [history, setHistory]         = useState(cachedDashboardState?.history ?? []);
   const [movies, setMovies]           = useState(cachedDashboardState?.movies ?? []);
   const [topRated, setTopRated]       = useState(cachedDashboardState?.topRated ?? []);
+  const [featured, setFeatured]       = useState(cachedDashboardState?.featured ?? []);
+  const [spotlightIndex, setSpotlightIndex] = useState(0);
   const [genreRows, setGenreRows]     = useState(cachedDashboardState?.genreRows ?? []); // [{ genre, movies }]
   const [loading, setLoading]         = useState(cachedDashboardState ? false : true);
   const [watchlist, setWatchlist]     = useState(new Set());
@@ -274,11 +294,12 @@ export default function DashboardPage() {
       if (!didCancel) setLoading(true);
 
       // Fetch recs, mood, prefs, history first — use results to inform movie fetch
-      const [recRes, moodRes, prefRes, histRes] = await Promise.allSettled([
+      const [recRes, moodRes, prefRes, histRes, featRes] = await Promise.allSettled([
         getRecommendations(user.id),
         getLatestMood(user.id),
         getPreferences(user.id),
         getHistory(user.id),
+        getFeaturedMovies(),
       ]);
 
       if (didCancel) return;
@@ -287,6 +308,7 @@ export default function DashboardPage() {
       if (moodRes.status === "fulfilled" && moodRes.value.data) setLatestMood(moodRes.value.data);
       if (prefRes.status === "fulfilled" && prefRes.value.data) setPreferences(prefRes.value.data);
       if (histRes.status === "fulfilled") setHistory(normalizeHistory(histRes.value.data));
+      if (featRes.status === "fulfilled") setFeatured(normalizeFeatured(featRes.value.data));
 
       // Build movie fetch params from mood + preferences
       const mood = moodRes.status === "fulfilled" ? moodRes.value.data?.mood : null;
@@ -366,9 +388,10 @@ export default function DashboardPage() {
         movies,
         topRated,
         genreRows,
+        featured,
       }));
     }
-  }, [user?.id, recs, latestMood, preferences, history, movies, topRated, genreRows, loading]);
+  }, [user?.id, recs, latestMood, preferences, history, movies, topRated, genreRows, featured, loading]);
 
   const handleAddToWatchlist = useCallback(async (id) => {
     const inList = watchlist.has(id);
@@ -400,6 +423,21 @@ export default function DashboardPage() {
   const handleViewDetails = useCallback((id) => {
     navigate(`/movies/${id}`, { state: { from: location.pathname } });
   }, [navigate, location.pathname]);
+
+  // Keep the spotlight index in range whenever the featured list changes
+  // (e.g. admin removes an entry while it's on screen).
+  useEffect(() => {
+    if (spotlightIndex >= featured.length) setSpotlightIndex(0);
+  }, [featured.length, spotlightIndex]);
+
+  // Auto-rotate the spotlight banner through featured picks every 7s.
+  useEffect(() => {
+    if (featured.length < 2) return;
+    const t = setInterval(() => {
+      setSpotlightIndex((i) => (i + 1) % featured.length);
+    }, 7000);
+    return () => clearInterval(t);
+  }, [featured.length]);
 
   if (authLoading) return <LoadingScreen />;
 
@@ -460,6 +498,14 @@ export default function DashboardPage() {
           >
             <SmilePlus size={13} strokeWidth={2} />
             Update Mood
+          </Link>
+
+          <Link
+            to="/preferences"
+            className="hidden sm:flex items-center gap-1.5 rounded-lg border border-white/[0.09] bg-[#1a1a24] px-3 py-1.5 text-[0.76rem] font-semibold text-[#9292b0] no-underline hover:border-white/20 hover:text-[#eeeef5] transition-all"
+          >
+            <SlidersHorizontal size={13} strokeWidth={2} />
+            Update Preferences
           </Link>
 
           {/* Avatar dropdown */}
@@ -730,6 +776,112 @@ export default function DashboardPage() {
             </div>
           </div>
         </section>
+
+        {featured.length > 0 && (
+          <section className="dash-section" style={{ animationDelay: "35ms" }}>
+            {(() => {
+              const spotlight = featured[Math.min(spotlightIndex, featured.length - 1)];
+              const m = spotlight.movie;
+              const inWatchlist = watchlist.has(m.id);
+              return (
+                <div
+                  className="relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#13131a]"
+                  style={{ minHeight: 320 }}
+                >
+                  {m.posterUrl && (
+                    <img
+                      src={m.posterUrl}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 h-full w-full object-cover opacity-40"
+                      style={{ objectPosition: "center 20%" }}
+                    />
+                  )}
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        "linear-gradient(90deg, #0b0b0f 18%, rgba(11,11,15,0.75) 55%, rgba(11,11,15,0.25) 100%), linear-gradient(0deg, #0b0b0f 0%, rgba(11,11,15,0.1) 45%)",
+                    }}
+                  />
+
+                  <div className="relative z-10 flex h-full flex-col justify-end gap-3 px-6 py-7 sm:px-9 sm:py-9" style={{ minHeight: 320 }}>
+                    <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#a78bfa]/15 px-2.5 py-1 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-[#c4b5fd]">
+                      <Flame size={12} strokeWidth={2.2} />
+                      {spotlight.label}
+                    </span>
+
+                    <h2 className="text-[clamp(1.4rem,3.2vw,2.1rem)] font-extrabold tracking-[-0.02em] text-[#eeeef5] leading-tight max-w-xl">
+                      {m.title}
+                    </h2>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {m.releaseYear && (
+                        <span className="text-[0.78rem] font-semibold text-[#9292b0]">{m.releaseYear}</span>
+                      )}
+                      {m.rating > 0 && (
+                        <span className="inline-flex items-center gap-1 text-[0.78rem] font-semibold text-[#fbbf24]">
+                          <Star size={12} strokeWidth={2} fill="#fbbf24" />
+                          {m.rating.toFixed(1)}
+                        </span>
+                      )}
+                      {m.genres.slice(0, 3).map((g) => (
+                        <GenreBadge key={g} genre={g} size="sm" />
+                      ))}
+                    </div>
+
+                    {m.overview && (
+                      <p className="max-w-xl text-[0.85rem] leading-relaxed text-[#9292b0] line-clamp-2">
+                        {m.overview}
+                      </p>
+                    )}
+
+                    <div className="mt-1 flex flex-wrap items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => handleViewDetails(m.id)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#eeeef5] px-4 py-2 text-[0.82rem] font-bold text-[#0b0b0f] border-none cursor-pointer hover:bg-white transition-all"
+                      >
+                        <Play size={14} strokeWidth={2.4} fill="#0b0b0f" />
+                        View Details
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddToWatchlist(m.id)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.18] bg-white/[0.06] px-4 py-2 text-[0.82rem] font-bold text-[#eeeef5] cursor-pointer hover:border-white/30 hover:bg-white/[0.1] transition-all"
+                      >
+                        {inWatchlist ? (
+                          <BookmarkCheck size={14} strokeWidth={2.2} />
+                        ) : (
+                          <Bookmark size={14} strokeWidth={2.2} />
+                        )}
+                        {inWatchlist ? "In Watchlist" : "Add to Watchlist"}
+                      </button>
+                    </div>
+
+                    {featured.length > 1 && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        {featured.map((f, i) => (
+                          <button
+                            key={f.featureId}
+                            type="button"
+                            onClick={() => setSpotlightIndex(i)}
+                            aria-label={`Show featured pick ${i + 1}`}
+                            className="h-1.5 cursor-pointer rounded-full border-none p-0 transition-all"
+                            style={{
+                              width: i === spotlightIndex ? 20 : 6,
+                              background: i === spotlightIndex ? "#a78bfa" : "rgba(255,255,255,0.18)",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </section>
+        )}
 
         <section className="dash-section" style={{ animationDelay: "55ms" }}>
           <MovieSection
